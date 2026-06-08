@@ -1,0 +1,164 @@
+"""Utilidades generales del sistema CredCore."""
+import random
+import string
+from decimal import Decimal, ROUND_HALF_UP
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
+
+
+def generate_code(prefix: str, length: int = 8) -> str:
+    """Genera un código único con prefijo. Ej: CLI-00000001"""
+    digits = ''.join(random.choices(string.digits, k=length))
+    return f"{prefix}-{digits}"
+
+
+# ── Frecuencias de pago ───────────────────────────────────────────────────────
+FREQUENCY_CONFIG = {
+    'DAILY':    {'periods_per_year': 365, 'delta': timedelta(days=1)},
+    'WEEKLY':   {'periods_per_year': 52,  'delta': timedelta(weeks=1)},
+    'BIWEEKLY': {'periods_per_year': 26,  'delta': timedelta(weeks=2)},
+    'MONTHLY':  {'periods_per_year': 12,  'delta': None},   # usa relativedelta
+}
+
+
+def _next_due_date(current: date, frequency: str, step: int) -> date:
+    """Calcula la fecha del siguiente vencimiento según la frecuencia."""
+    if frequency == 'DAILY':
+        return current + timedelta(days=step)
+    elif frequency == 'WEEKLY':
+        return current + timedelta(weeks=step)
+    elif frequency == 'BIWEEKLY':
+        return current + timedelta(weeks=step * 2)
+    else:  # MONTHLY (default)
+        return current + relativedelta(months=step)
+
+
+def _periods_to_months(term_periods: int, frequency: str) -> Decimal:
+    """Convierte períodos a meses equivalentes para cálculo de interés."""
+    config = FREQUENCY_CONFIG.get(frequency, FREQUENCY_CONFIG['MONTHLY'])
+    return Decimal(str(term_periods)) / Decimal(str(config['periods_per_year'])) * 12
+
+
+def _period_rate(annual_rate: Decimal, frequency: str) -> Decimal:
+    """Convierte tasa anual a tasa por período según la frecuencia."""
+    config = FREQUENCY_CONFIG.get(frequency, FREQUENCY_CONFIG['MONTHLY'])
+    periods = Decimal(str(config['periods_per_year']))
+    return annual_rate / Decimal('100') / periods
+
+
+def calculate_amortization_schedule(
+    principal: Decimal,
+    annual_rate: Decimal,
+    term_months: int,
+    payment_method: str = 'NIVELADA',
+    start_date: date = None,
+    payment_frequency: str = 'MONTHLY',
+    interest_type: str = 'SIMPLE',
+) -> list[dict]:
+    """
+    Calcula la tabla de amortización con soporte de frecuencias.
+
+    Args:
+        principal:         Monto del préstamo
+        annual_rate:       Tasa anual en % (ej: 24 para 24%)
+        term_months:       Plazo en MESES (siempre en meses independiente de la frecuencia)
+        payment_method:    NIVELADA | DECRECIENTE
+        start_date:        Fecha del primer pago
+        payment_frequency: DAILY | WEEKLY | BIWEEKLY | MONTHLY
+        interest_type:     SIMPLE | COMPOUND
+    """
+    if start_date is None:
+        start_date = date.today()
+
+    config = FREQUENCY_CONFIG.get(payment_frequency, FREQUENCY_CONFIG['MONTHLY'])
+    periods_per_year = Decimal(str(config['periods_per_year']))
+
+    # Convertir plazo en meses → número de períodos de pago
+    # Ej: 12 meses semanal = 52 semanas
+    months_decimal = Decimal(str(term_months))
+    total_periods  = int((months_decimal / 12 * periods_per_year).to_integral_value(ROUND_HALF_UP))
+    if total_periods < 1:
+        total_periods = 1
+
+    # Tasa por período
+    period_rate = annual_rate / Decimal('100') / periods_per_year
+
+    schedule = []
+
+    if payment_method == 'NIVELADA':
+        # Cuota fija (sistema francés)
+        if period_rate == 0:
+            payment = principal / Decimal(str(total_periods))
+        else:
+            r = period_rate
+            n = total_periods
+            payment = principal * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
+
+        balance = principal
+        for i in range(1, total_periods + 1):
+            if interest_type == 'COMPOUND':
+                interest = balance * period_rate
+            else:
+                # Interés simple: aplica sobre el capital ORIGINAL cada período
+                interest = principal * period_rate
+
+            principal_pmt = payment - interest
+            if i == total_periods:
+                principal_pmt = balance
+                interest = payment - principal_pmt if payment > principal_pmt else principal * period_rate
+            balance = max(Decimal('0'), balance - principal_pmt)
+            due_date = _next_due_date(start_date, payment_frequency, i)
+
+            schedule.append({
+                'installment_number': i,
+                'due_date': due_date,
+                'principal_amount': round(principal_pmt, 2),
+                'interest_amount':  round(interest, 2),
+                'total_amount':     round(principal_pmt + interest, 2),
+                'balance':          round(balance, 2),
+            })
+
+    elif payment_method == 'DECRECIENTE':
+        # Capital constante
+        principal_pmt = principal / Decimal(str(total_periods))
+        balance = principal
+        for i in range(1, total_periods + 1):
+            if interest_type == 'COMPOUND':
+                interest = balance * period_rate
+            else:
+                interest = principal * period_rate * (1 - Decimal(str(i - 1)) / Decimal(str(total_periods)))
+            if i == total_periods:
+                principal_pmt = balance
+            balance = max(Decimal('0'), balance - principal_pmt)
+            due_date = _next_due_date(start_date, payment_frequency, i)
+            schedule.append({
+                'installment_number': i,
+                'due_date': due_date,
+                'principal_amount': round(principal_pmt, 2),
+                'interest_amount':  round(interest, 2),
+                'total_amount':     round(principal_pmt + interest, 2),
+                'balance':          round(balance, 2),
+            })
+
+    return schedule
+
+
+def format_currency(amount: Decimal, currency: str = 'DOP', symbol: str = 'RD$') -> str:
+    return f"{symbol} {amount:,.2f}"
+
+
+def calculate_age(birth_date: date) -> int:
+    today = date.today()
+    return today.year - birth_date.year - (
+        (today.month, today.day) < (birth_date.month, birth_date.day)
+    )
+
+
+def get_frequency_display(frequency: str) -> str:
+    return {
+        'DAILY':    'Diario',
+        'WEEKLY':   'Semanal',
+        'BIWEEKLY': 'Quincenal',
+        'MONTHLY':  'Mensual',
+        'CUSTOM':   'Personalizado',
+    }.get(frequency, 'Mensual')

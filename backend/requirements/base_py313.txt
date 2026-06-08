@@ -1,0 +1,60 @@
+# Django Core - versiones compatibles con Python 3.13
+Django==5.0.6
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+django-filter==24.2
+channels==4.2.0
+channels-redis==4.2.0
+
+# Database
+psycopg2-binary==2.9.9
+django-redis==5.4.0
+
+# Async Tasks
+celery==5.4.0
+django-celery-beat==2.6.0
+django-celery-results==2.5.1
+redis==5.0.7
+
+# Auth & Security
+pyotp==2.9.0
+qrcode==7.4.2
+cryptography==42.0.8
+
+# API Documentation
+drf-spectacular==0.27.2
+
+# File handling & OCR
+Pillow==10.3.0
+python-docx==1.1.2
+reportlab==4.2.2
+PyPDF2==3.0.1
+pytesseract==0.3.10
+openpyxl==3.1.4
+
+# Storage
+django-storages==1.14.3
+boto3==1.34.131
+
+# Templates
+Jinja2==3.1.4
+
+# HTTP Clients (for integrations)
+httpx==0.27.0
+requests==2.32.3
+
+# Environment
+python-decouple==3.8
+python-dotenv==1.0.1
+
+# Utilities
+phonenumbers==8.13.39
+django-countries==7.6.1
+babel==2.15.0
+
+# Audit
+django-auditlog==3.0.0
+
+# WhatsApp & SMS
+twilio==9.2.3
