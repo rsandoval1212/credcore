@@ -10,6 +10,7 @@ import {
   type CompanySettings, type BackupConfig, type BackupRecord,
 } from '@/services/company'
 import api from '@/services/api'
+import { saveBlob } from '@/utils/download'
 import toast from 'react-hot-toast'
 
 const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
@@ -237,18 +238,8 @@ function BackupTab() {
       const response = await api.get(path, { responseType: 'blob', timeout: 120_000 })
 
       const blob = response.data as Blob
-      const blobUrl = URL.createObjectURL(blob)
-
-      // Disparar descarga del navegador — el usuario elige la carpeta
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = record.file_name
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-
-      toast.success(`Descargando ${record.file_name}`, { icon: '⬇️' })
+      const saved = await saveBlob(blob, record.file_name)
+      if (saved) toast.success(`Backup guardado: ${record.file_name}`, { icon: '⬇️' })
     } catch {
       toast.error('Error descargando el backup')
     } finally { setDownloading(null) }

@@ -15,10 +15,10 @@ from .serializers import (
 )
 
 
-from apps.core.mixins import SoftDeleteViewSetMixin
+from apps.core.mixins import SoftDeleteViewSetMixin, AutoMainBranchMixin
 
 
-class LoanViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     queryset = Loan.objects.filter(is_deleted=False).select_related(
         'customer', 'product', 'branch', 'officer'
     ).prefetch_related('schedule')

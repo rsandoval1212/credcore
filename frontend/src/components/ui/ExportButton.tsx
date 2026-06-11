@@ -7,6 +7,7 @@
 import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
 import api from '@/services/api'
+import { saveBlob } from '@/utils/download'
 import toast from 'react-hot-toast'
 
 interface Props {
@@ -48,17 +49,8 @@ export default function ExportButton({
       const filename = match?.[1] || (isPdf ? 'documento.pdf' : 'reporte.xlsx')
 
       const blob = response.data as Blob
-      const blobUrl = URL.createObjectURL(blob)
-
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-
-      toast.success(`Descargando ${filename}`, { icon: '📊' })
+      const saved = await saveBlob(blob, filename)
+      if (saved) toast.success(`Archivo guardado: ${filename}`, { icon: '📊' })
     } catch (e: unknown) {
       const status = (e as { response?: { status?: number } })?.response?.status
       if (status === 404) toast.error('No hay datos para generar el archivo')

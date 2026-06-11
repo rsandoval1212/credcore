@@ -6,6 +6,33 @@ from rest_framework import status
 from rest_framework.response import Response
 
 
+class AutoMainBranchMixin:
+    """Auto-asigna la 'Sucursal Principal' cuando no se envía 'branch'.
+
+    En la versión de escritorio (un solo negocio) el usuario no gestiona
+    sucursales. Este mixin inyecta la sucursal principal antes de validar,
+    de modo que módulos como clientes, préstamos o solicitudes se puedan
+    crear sin que el frontend tenga que enviar una sucursal.
+    """
+
+    def create(self, request, *args, **kwargs):
+        data = request.data
+        try:
+            data = data.copy() if hasattr(data, 'copy') else dict(data)
+        except Exception:
+            data = dict(data)
+
+        if not data.get('branch'):
+            from apps.branches.models import Branch
+            data['branch'] = Branch.get_main().pk
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+
 class SoftDeleteViewSetMixin:
     """Mixin que intercepta destroy() para hacer soft-delete en vez de hard-delete.
     También filtra is_deleted=False por defecto en get_queryset."""

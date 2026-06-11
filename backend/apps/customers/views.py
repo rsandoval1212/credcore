@@ -20,10 +20,10 @@ from .serializers import (
 )
 
 
-from apps.core.mixins import SoftDeleteViewSetMixin
+from apps.core.mixins import SoftDeleteViewSetMixin, AutoMainBranchMixin
 
 
-class CustomerViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
+class CustomerViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     queryset = Customer.objects.filter(is_deleted=False).select_related(
         'branch', 'assigned_officer', 'financial_summary', 'employment', 'business', 'financial_info'
     ).prefetch_related('references', 'commercial_references', 'bank_references', 'documents', 'guarantors')
