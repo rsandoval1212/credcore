@@ -7,6 +7,7 @@ import {
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { customersService } from '@/services/customers'
+import api from '@/services/api'
 import type { Customer, CustomerStatus, RiskLevel } from '@/types'
 import toast from 'react-hot-toast'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
@@ -320,18 +321,17 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const token = (await import('@/store/slices/authStore')).useAuthStore.getState().accessToken
-      const res = await fetch('/api/v1/reports/import/customers/', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
+      // axios detecta FormData y fija el Content-Type multipart con boundary,
+      // además auto-refresca el token via interceptor
+      const res = await api.post('/reports/import/customers/', fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120_000,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Error importando')
-      setResult(data)
-      toast.success(data.message, { icon: '📊' })
+      setResult(res.data)
+      toast.success(res.data.message, { icon: '📊' })
     } catch (e: unknown) {
-      toast.error((e as Error).message || 'Error importando clientes')
+      const err = e as { response?: { data?: { detail?: string } } }
+      toast.error(err.response?.data?.detail || 'Error importando clientes')
     } finally { setLoading(false) }
   }
 

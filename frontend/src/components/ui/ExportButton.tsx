@@ -1,10 +1,12 @@
 /**
- * ExportButton — Botón de descarga de Excel con autenticación Bearer.
- * Usa fetch con el token JWT para descargar el archivo directamente.
+ * ExportButton — Botón de descarga de Excel/PDF.
+ * Usa la instancia axios `api` para que el token se auto-refresque (interceptor)
+ * y se envíen las cookies httpOnly. Esto evita fallos de descarga cuando el
+ * access token de 15 min ha expirado.
  */
 import { useState } from 'react'
 import { Download, Loader2 } from 'lucide-react'
-import { useAuthStore } from '@/store/slices/authStore'
+import api from '@/services/api'
 import toast from 'react-hot-toast'
 
 interface Props {
@@ -26,29 +28,26 @@ export default function ExportButton({
   variant = 'default',
 }: Props) {
   const [loading, setLoading] = useState(false)
-  const { accessToken } = useAuthStore()
 
   const handleExport = async () => {
     setLoading(true)
     try {
-      let url = endpoint
-      if (params && Object.keys(params).length > 0) {
-        const qs = new URLSearchParams(params).toString()
-        url = `${endpoint}?${qs}`
-      }
+      // La instancia api ya tiene baseURL '/api/v1' — quitar ese prefijo si viene incluido
+      const path = endpoint.replace(/^\/api\/v1/, '')
 
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+      const response = await api.get(path, {
+        params,
+        responseType: 'blob',
+        timeout: 120_000,  // Reportes grandes pueden tardar
       })
 
-      if (!response.ok) throw new Error(`Error ${response.status}`)
-
       // Extraer nombre del archivo del header Content-Disposition
-      const disposition = response.headers.get('Content-Disposition') || ''
+      const disposition = (response.headers['content-disposition'] as string) || ''
       const match = disposition.match(/filename="?([^"]+)"?/)
-      const filename = match?.[1] || 'reporte.xlsx'
+      const isPdf = path.includes('/pdf/')
+      const filename = match?.[1] || (isPdf ? 'documento.pdf' : 'reporte.xlsx')
 
-      const blob = await response.blob()
+      const blob = response.data as Blob
       const blobUrl = URL.createObjectURL(blob)
 
       const a = document.createElement('a')
@@ -57,11 +56,13 @@ export default function ExportButton({
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(blobUrl)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
 
       toast.success(`Descargando ${filename}`, { icon: '📊' })
-    } catch {
-      toast.error('Error generando el archivo Excel')
+    } catch (e: unknown) {
+      const status = (e as { response?: { status?: number } })?.response?.status
+      if (status === 404) toast.error('No hay datos para generar el archivo')
+      else toast.error('Error generando el archivo. Intenta de nuevo.')
     } finally {
       setLoading(false)
     }

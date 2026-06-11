@@ -42,3 +42,8 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# SQLite WAL files
+*.sqlite3-wal
+*.sqlite3-shm
+.env.production

@@ -4,6 +4,8 @@ import api from '@/services/api'
 import toast from 'react-hot-toast'
 import { notificationsService } from '@/services/notifications'
 import { extractApiError } from '@/utils/apiError'
+import { useAuthStore } from '@/store/slices/authStore'
+import AdminConfirmModal from '@/components/ui/AdminConfirmModal'
 
 interface Props { onClose: () => void; onSaved: () => void }
 
@@ -11,7 +13,10 @@ const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm foc
 const fmt = (n: number) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 0 }).format(n)
 
 export default function PaymentFormModal({ onClose, onSaved }: Props) {
+  const { user } = useAuthStore()
+  const isAdmin = user?.is_superuser || user?.is_staff
   const [saving, setSaving] = useState(false)
+  const [showAdminConfirm, setShowAdminConfirm] = useState(false)
   const [successPayment, setSuccessPayment] = useState<{ id: string; receipt_number: string; total_amount: number; customer_name: string } | null>(null)
   const [sendingWa, setSendingWa] = useState(false)
   const [loans, setLoans] = useState<{ id: string; loan_number: string; customer_name: string; outstanding_principal: number; outstanding_interest: number; outstanding_late_fees: number; monthly_payment: number }[]>([])
@@ -56,9 +61,8 @@ export default function PaymentFormModal({ onClose, onSaved }: Props) {
     }))
   }
 
-  const handleSave = async () => {
-    if (!selectedLoan) { toast.error('Selecciona un préstamo'); return }
-    if (!form.total_amount) { toast.error('Ingresa el monto'); return }
+  const doSave = async () => {
+    if (!selectedLoan) return
     setSaving(true)
     try {
       const r = await api.post('/payments/', {
@@ -79,11 +83,22 @@ export default function PaymentFormModal({ onClose, onSaved }: Props) {
         id: r.data.id,
         receipt_number: r.data.receipt_number,
         total_amount: parseFloat(r.data.total_amount),
-        customer_name: selectedLoan.customer_name,
+        customer_name: selectedLoan!.customer_name,
       })
     } catch (e: unknown) {
       toast.error(extractApiError(e, 'Error registrando cobro'))
     } finally { setSaving(false) }
+  }
+
+  const handleSave = () => {
+    if (!selectedLoan) { toast.error('Selecciona un préstamo'); return }
+    if (!form.total_amount) { toast.error('Ingresa el monto'); return }
+    // Non-admin users need admin authorization for payments
+    if (!isAdmin) {
+      setShowAdminConfirm(true)
+      return
+    }
+    doSave()
   }
 
   const handleSendReceipt = async () => {
@@ -262,6 +277,14 @@ export default function PaymentFormModal({ onClose, onSaved }: Props) {
           </button>
         </div>
       </div>
+
+      {showAdminConfirm && (
+        <AdminConfirmModal
+          action={`Registrar cobro de ${form.total_amount ? fmt(parseFloat(form.total_amount)) : 'RD$0'} al préstamo ${selectedLoan?.loan_number || ''}`}
+          onConfirmed={() => { setShowAdminConfirm(false); doSave() }}
+          onClose={() => setShowAdminConfirm(false)}
+        />
+      )}
     </div>
   )
 }

@@ -6,10 +6,14 @@ ALLOWED_HOSTS = ['*']
 
 # SQLite para desarrollo local - cambia USE_SQLITE=False cuando tengas PostgreSQL
 if os.environ.get('USE_SQLITE', 'True') == 'True':
+    _db_path = os.environ.get('DB_PATH', str(BASE_DIR / 'db.sqlite3'))
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'NAME': _db_path,
+            'OPTIONS': {
+                'timeout': 20,
+            },
         }
     }
 

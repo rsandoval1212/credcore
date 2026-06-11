@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from apps.branches.models import Branch
 from .models import CashRegister, CashSession, CashTransaction
 
 
@@ -15,6 +16,10 @@ class CashTransactionSerializer(serializers.ModelSerializer):
 
 class CashRegisterSerializer(serializers.ModelSerializer):
     branch_name = serializers.CharField(source='branch.name', read_only=True)
+    # En la versión de escritorio la sucursal se asigna automáticamente
+    branch = serializers.PrimaryKeyRelatedField(
+        queryset=Branch.objects.all(), required=False, allow_null=True
+    )
 
     class Meta:
         model = CashRegister

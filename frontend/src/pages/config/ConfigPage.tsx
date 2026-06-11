@@ -9,7 +9,7 @@ import {
   companyService, backupService,
   type CompanySettings, type BackupConfig, type BackupRecord,
 } from '@/services/company'
-import { useAuthStore } from '@/store/slices/authStore'
+import api from '@/services/api'
 import toast from 'react-hot-toast'
 
 const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
@@ -196,7 +196,6 @@ function CompanyTab() {
 
 // ── Tab Backup ───────────────────────────────────────────────────────────────
 function BackupTab() {
-  const { accessToken } = useAuthStore()
   const [config, setConfig]     = useState<BackupConfig | null>(null)
   const [records, setRecords]   = useState<BackupRecord[]>([])
   const [running, setRunning]   = useState(false)
@@ -233,14 +232,11 @@ function BackupTab() {
     if (record.status !== 'COMPLETED') { toast.error('Solo se pueden descargar backups completados'); return }
     setDownloading(record.id)
     try {
-      // Hacemos fetch con el token para obtener el archivo como blob
-      const url = backupService.downloadUrl(record.id)
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      })
-      if (!response.ok) throw new Error(`Error ${response.status}`)
+      // Usar axios (auto-refresh del token + cookies) para evitar fallos por token expirado
+      const path = backupService.downloadUrl(record.id).replace(/^\/api\/v1/, '')
+      const response = await api.get(path, { responseType: 'blob', timeout: 120_000 })
 
-      const blob = await response.blob()
+      const blob = response.data as Blob
       const blobUrl = URL.createObjectURL(blob)
 
       // Disparar descarga del navegador — el usuario elige la carpeta
@@ -250,7 +246,7 @@ function BackupTab() {
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(blobUrl)
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
 
       toast.success(`Descargando ${record.file_name}`, { icon: '⬇️' })
     } catch {

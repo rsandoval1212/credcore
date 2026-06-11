@@ -25,6 +25,26 @@ class Branch(TimeStampedModel):
     def __str__(self):
         return f'{self.code} - {self.name}'
 
+    @classmethod
+    def get_main(cls):
+        """Devuelve la sucursal principal, creándola si no existe.
+
+        En la versión de escritorio (un solo negocio) las sucursales se
+        manejan de forma transparente: siempre hay una 'Sucursal Principal'.
+        """
+        branch = cls.objects.filter(is_main=True).first() or cls.objects.first()
+        if branch is None:
+            branch = cls.objects.create(
+                name='Sucursal Principal',
+                code='PRINCIPAL',
+                address='N/A',
+                city='N/A',
+                province='N/A',
+                is_main=True,
+                is_active=True,
+            )
+        return branch
+
 
 class BranchSettings(models.Model):
     """Configuración específica por sucursal."""

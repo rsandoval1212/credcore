@@ -5,7 +5,7 @@ import { cacheGet, cacheSet, enqueue, describeOp } from './offline'
 const api = axios.create({
   baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
-  timeout: 10_000,
+  timeout: 30_000,
   withCredentials: true,  // Enviar httpOnly cookies automáticamente
 })
 

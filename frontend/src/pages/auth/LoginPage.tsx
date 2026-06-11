@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { CreditCard, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/store/slices/authStore'
 import toast from 'react-hot-toast'
+import logo from '@/assets/logo.png'
 
 interface LoginForm { email: string; password: string; totp_code?: string }
 
@@ -40,11 +41,8 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-2xl mb-4">
-            <CreditCard className="h-8 w-8 text-primary-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">CredCore</h1>
-          <p className="text-gray-500 text-sm mt-1">Sistema de Gestión de Créditos</p>
+          <img src={logo} alt="CredCore" className="w-28 h-28 mx-auto mb-3 object-contain" />
+          <p className="text-gray-500 text-sm">Sistema de Gestión de Créditos</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

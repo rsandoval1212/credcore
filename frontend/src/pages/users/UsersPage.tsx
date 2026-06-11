@@ -55,25 +55,29 @@ function UserFormModal({ user, roles, branches, onClose, onSaved }: {
 
     setSaving(true)
     try {
-      let savedUser: UserItem
       if (isEdit) {
-        const r = await api.patch(`/auth/users/${user!.id}/update_profile/`, {
+        await api.patch(`/auth/users/${user!.id}/update_profile/`, {
           first_name: form.first_name, last_name: form.last_name,
           phone: form.phone, branch: form.branch || null,
           is_staff: form.is_staff, is_superuser: form.is_superuser,
         })
-        savedUser = r.data
+        // Assign roles via through-model-safe endpoint
+        await api.post(`/auth/users/${user!.id}/assign_roles/`, { role_ids: selectedRoles })
       } else {
+        // Create user with roles included
         const r = await api.post('/auth/users/', {
           first_name: form.first_name, last_name: form.last_name,
           email: form.email, username: form.username || form.email.split('@')[0],
           phone: form.phone, branch: form.branch || null,
           password: form.password, password_confirm: form.password_confirm,
+          role_ids: selectedRoles,
+          is_staff: form.is_staff, is_superuser: form.is_superuser,
         })
-        savedUser = r.data
+        // Also ensure roles via endpoint for through-model assigned_by
+        if (selectedRoles.length > 0 && r.data?.id) {
+          await api.post(`/auth/users/${r.data.id}/assign_roles/`, { role_ids: selectedRoles })
+        }
       }
-      // Asignar roles
-      await api.post(`/auth/users/${savedUser.id}/assign_roles/`, { role_ids: selectedRoles })
       toast.success(isEdit ? 'Usuario actualizado' : 'Usuario creado exitosamente')
       onSaved()
     } catch (e) {

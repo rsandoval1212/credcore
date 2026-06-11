@@ -28,11 +28,16 @@ class UserSerializer(serializers.ModelSerializer):
 class UserCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True)
+    role_ids = serializers.ListField(child=serializers.IntegerField(), required=False, write_only=True)
+    roles = RoleSerializer(many=True, read_only=True)
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
 
     class Meta:
         model = User
-        fields = ['email', 'username', 'first_name', 'last_name', 'phone',
-                  'branch', 'password', 'password_confirm']
+        fields = ['id', 'email', 'username', 'first_name', 'last_name', 'phone',
+                  'branch', 'password', 'password_confirm', 'role_ids', 'roles',
+                  'full_name', 'is_active', 'is_staff', 'is_superuser']
+        read_only_fields = ['id', 'is_active']
 
     def validate(self, data):
         if data['password'] != data['password_confirm']:
@@ -42,7 +47,21 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('password_confirm')
         password = validated_data.pop('password')
+        role_ids = validated_data.pop('role_ids', [])
         user = User.objects.create_user(password=password, **validated_data)
+        # Assign roles via through model
+        if role_ids:
+            request = self.context.get('request')
+            assigned_by = request.user if request else None
+            for role_id in role_ids:
+                try:
+                    role = Role.objects.get(id=role_id, is_active=True)
+                    UserRole.objects.get_or_create(
+                        user=user, role=role,
+                        defaults={'assigned_by': assigned_by}
+                    )
+                except Role.DoesNotExist:
+                    pass
         return user
 
 

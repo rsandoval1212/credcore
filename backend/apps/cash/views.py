@@ -20,6 +20,18 @@ class CashRegisterViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, module_permissions('cash')]
     serializer_class = CashRegisterSerializer
 
+    def perform_create(self, serializer):
+        """Auto-asigna la sucursal principal si no se especifica una.
+
+        Versión escritorio: el usuario no gestiona sucursales, se usa una
+        'Sucursal Principal' transparente.
+        """
+        from apps.branches.models import Branch
+        branch = serializer.validated_data.get('branch')
+        if not branch:
+            branch = Branch.get_main()
+        serializer.save(branch=branch)
+
 
 class CashSessionViewSet(viewsets.ModelViewSet):
     queryset = CashSession.objects.select_related('cash_register', 'cashier', 'closed_by').prefetch_related('transactions', 'payments')

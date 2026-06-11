@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { Vault, RefreshCw, Plus, CheckCircle, Clock, TrendingUp, TrendingDown, X, Save, PlusCircle } from 'lucide-react'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import { useAuthStore } from '@/store/slices/authStore'
+import AdminConfirmModal from '@/components/ui/AdminConfirmModal'
 
 interface Session {
   id: number; register_name: string; cashier_name: string; status: string; status_display: string
@@ -19,9 +21,12 @@ export default function CashPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [registers, setRegisters] = useState<Register[]>([])
+  const { user } = useAuthStore()
+  const isAdmin = user?.is_superuser || user?.is_staff
   const [showOpen, setShowOpen] = useState(false)
   const [showClose, setShowClose] = useState<Session | null>(null)
   const [showNewRegister, setShowNewRegister] = useState(false)
+  const [showAdminConfirm, setShowAdminConfirm] = useState<'close' | null>(null)
   const [newRegisterName, setNewRegisterName] = useState('')
   const [openForm, setOpenForm] = useState({ cash_register: '', opening_amount: '0' })
   const [closeForm, setCloseForm] = useState({ closing_amount: '', notes: '' })
@@ -48,25 +53,8 @@ export default function CashPage() {
     if (!newRegisterName.trim()) { toast.error('Ingresa un nombre para la caja'); return }
     setSaving(true)
     try {
-      // Get first branch or create one
-      let branchId: number
-      try {
-        const branchRes = await api.get('/branches/')
-        const branches = branchRes.data.results || branchRes.data
-        if (branches.length > 0) {
-          branchId = branches[0].id
-        } else {
-          // Create default branch
-          const newBranch = await api.post('/branches/', { name: 'Sucursal Principal', code: 'MAIN', address: 'Dirección Principal', phone: '000-000-0000' })
-          branchId = newBranch.data.id
-        }
-      } catch {
-        toast.error('Error obteniendo sucursales. Crea una sucursal primero.')
-        setSaving(false)
-        return
-      }
-
-      const res = await api.post('/cash/registers/', { name: newRegisterName.trim(), branch: branchId, currency: 'DOP', is_active: true })
+      // La sucursal se asigna automáticamente en el backend (versión escritorio)
+      const res = await api.post('/cash/registers/', { name: newRegisterName.trim(), currency: 'DOP', is_active: true })
       toast.success(`Caja "${res.data.name}" creada`)
       setNewRegisterName('')
       setShowNewRegister(false)
@@ -90,13 +78,21 @@ export default function CashPage() {
     } catch { toast.error('Error abriendo sesión') } finally { setSaving(false) }
   }
 
-  const handleClose = async () => {
+  const doClose = async () => {
     if (!showClose) return
     setSaving(true)
     try {
       await api.post(`/cash/sessions/${showClose.id}/close_session/`, { closing_amount: parseFloat(closeForm.closing_amount) || 0, notes: closeForm.notes })
       toast.success('Sesión cerrada'); setShowClose(null); setCloseForm({ closing_amount: '', notes: '' }); load()
     } catch { toast.error('Error cerrando sesión') } finally { setSaving(false) }
+  }
+
+  const handleClose = () => {
+    if (!isAdmin) {
+      setShowAdminConfirm('close')
+      return
+    }
+    doClose()
   }
 
   return (
@@ -231,6 +227,14 @@ export default function CashPage() {
           </div>
         )}
       </div>
+
+      {showAdminConfirm === 'close' && (
+        <AdminConfirmModal
+          action={`Cerrar sesión de caja: ${showClose?.register_name || ''}`}
+          onConfirmed={() => { setShowAdminConfirm(null); doClose() }}
+          onClose={() => setShowAdminConfirm(null)}
+        />
+      )}
     </div>
   )
 }

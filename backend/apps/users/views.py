@@ -189,15 +189,26 @@ class UserViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Solo administradores pueden crear usuarios.')
         serializer.save()
 
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx['request'] = self.request
+        return ctx
+
     @action(detail=True, methods=['post'])
     def assign_roles(self, request, pk=None):
         """Asigna roles a un usuario. Payload: { role_ids: [1,2,3] }"""
+        from .models import UserRole
         if not request.user.is_superuser and not request.user.is_staff:
             return Response({'detail': 'Sin permiso.'}, status=403)
         user = self.get_object()
         role_ids = request.data.get('role_ids', [])
+        # Clear existing roles and assign new ones (through model requires manual management)
+        UserRole.objects.filter(user=user).delete()
         roles = Role.objects.filter(id__in=role_ids, is_active=True)
-        user.roles.set(roles)
+        for role in roles:
+            UserRole.objects.create(user=user, role=role, assigned_by=request.user)
+        # Refresh user to include new roles
+        user = User.objects.select_related('branch').prefetch_related('roles').get(pk=user.pk)
         return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=['post'])
