@@ -3,6 +3,10 @@ Módulo de Clientes - Expediente digital completo.
 """
 from django.db import models
 from apps.core.models import BaseModel
+from apps.core.validators import (
+    validate_image_extension, validate_image_size,
+    validate_file_extension, validate_file_size,
+)
 
 
 class Customer(BaseModel):
@@ -38,11 +42,12 @@ class Customer(BaseModel):
 
     # Documento de identidad
     id_type = models.CharField(max_length=10, choices=ID_TYPE_CHOICES, default='CEDULA')
-    id_number = models.CharField(max_length=20, db_index=True)
+    id_number = models.CharField(max_length=20, unique=True, db_index=True)
     id_expiry_date = models.DateField(null=True, blank=True)
 
     # Foto del cliente
-    photo = models.ImageField(upload_to='customers/photos/', null=True, blank=True)
+    photo = models.ImageField(upload_to='customers/photos/', null=True, blank=True,
+                              validators=[validate_image_extension, validate_image_size])
 
     # Contacto
     phone1 = models.CharField(max_length=20)
@@ -122,7 +127,7 @@ class Customer(BaseModel):
     def save(self, *args, **kwargs):
         if not self.customer_code:
             from apps.core.utils import generate_code
-            self.customer_code = generate_code('CLI', 8)
+            self.customer_code = generate_code('CLI', 8, model_class=Customer, field_name='customer_code')
         super().save(*args, **kwargs)
 
 
@@ -331,7 +336,8 @@ class CustomerDocument(models.Model):
     ]
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=30, choices=DOC_TYPE_CHOICES)
-    file = models.FileField(upload_to='customers/documents/%Y/%m/')
+    file = models.FileField(upload_to='customers/documents/%Y/%m/',
+                            validators=[validate_file_extension, validate_file_size])
     file_name = models.CharField(max_length=255)
     file_size = models.PositiveIntegerField(default=0)
     mime_type = models.CharField(max_length=100, blank=True)

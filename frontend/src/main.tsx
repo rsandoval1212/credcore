@@ -6,17 +6,17 @@ import { Toaster } from 'react-hot-toast'
 import App from './App'
 import './index.css'
 import { initAutoSync } from './services/syncManager'
+import { I18nProvider } from './i18n'
 
 // Inicializar sistema de sincronización offline
 initAutoSync()
 
-// Registrar Service Worker para que la app funcione sin internet
-if ('serviceWorker' in navigator && import.meta.env.PROD === false) {
-  // En desarrollo lo registramos también para probar
-}
-if ('serviceWorker' in navigator) {
+// Service Worker: solo registrar en producción cuando el archivo existe
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // sw.js no disponible — PWA offline deshabilitado
+    })
   })
 }
 
@@ -31,11 +31,13 @@ const queryClient = new QueryClient({
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-        <Toaster position="top-right" />
-      </BrowserRouter>
-    </QueryClientProvider>
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <App />
+          <Toaster position="top-right" />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </I18nProvider>
   </React.StrictMode>
 )

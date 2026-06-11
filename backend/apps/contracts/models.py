@@ -55,7 +55,7 @@ class Contract(BaseModel):
     def save(self, *args, **kwargs):
         if not self.contract_number:
             from apps.core.utils import generate_code
-            self.contract_number = generate_code('CONT', 8)
+            self.contract_number = generate_code('CONT', 8, model_class=type(self), field_name='contract_number')
         super().save(*args, **kwargs)
 
 

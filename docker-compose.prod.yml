@@ -1,0 +1,163 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# CredCore — Docker Compose para PRODUCCIÓN
+# Uso: docker compose -f docker-compose.prod.yml up -d
+# ═══════════════════════════════════════════════════════════════════════════════
+version: '3.9'
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: credcore_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups/db:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - credcore_net
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: credcore_redis
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - credcore_net
+
+  # ── Backend (Django + Gunicorn) ────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: credcore_backend
+    restart: always
+    env_file: .env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - media_files:/app/media
+      - static_files:/app/staticfiles
+      - ./backups:/app/backups
+      - /var/log/credcore:/var/log/credcore
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - credcore_net
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: credcore_celery
+    restart: always
+    env_file: .env.production
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - media_files:/app/media
+    depends_on:
+      - backend
+      - redis
+    command: celery -A config worker -l warning -Q default,notifications,reports --concurrency=2
+    networks:
+      - credcore_net
+
+  # ── Celery Beat (scheduled tasks) ─────────────────────────────────────────
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: production
+    container_name: credcore_beat
+    restart: always
+    env_file: .env.production
+    environment:
+      DB_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+    command: celery -A config beat -l warning --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    networks:
+      - credcore_net
+
+  # ── Frontend (Nginx + SPA) ────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: production
+    container_name: credcore_frontend
+    restart: always
+    # No expone puertos — nginx hace proxy
+    depends_on:
+      - backend
+    networks:
+      - credcore_net
+
+  # ── Nginx SSL Proxy (HTTPS) ───────────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: credcore_nginx
+    restart: always
+    ports:
+      - "443:443"
+      - "80:80"  # Redirect a HTTPS + Let's Encrypt challenge
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - certbot_data:/var/www/certbot:ro
+      - static_files:/var/www/static:ro
+      - media_files:/var/www/media:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - credcore_net
+
+  # ── Certbot (Let's Encrypt SSL) ───────────────────────────────────────────
+  certbot:
+    image: certbot/certbot
+    container_name: credcore_certbot
+    volumes:
+      - ./nginx/ssl:/etc/letsencrypt
+      - certbot_data:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_files:
+  static_files:
+  certbot_data:
+
+networks:
+  credcore_net:
+    driver: bridge

@@ -11,6 +11,12 @@ from django.db.models import Sum, Count, Q, Avg
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
+
+
+# FIX A5: Rate limit para exports (previene abuso sin bloquear uso normal)
+class ExportThrottle(UserRateThrottle):
+    rate = '30/minute'
 
 
 # ── Helpers de formato ────────────────────────────────────────────────────────
@@ -80,6 +86,7 @@ def _title_block(ws, title: str, subtitle: str):
 
 class ExportCustomersView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ExportThrottle]
 
     def get(self, request):
         from apps.customers.models import Customer
@@ -134,6 +141,7 @@ class ExportCustomersView(APIView):
 
 class ExportLoansView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ExportThrottle]
 
     def get(self, request):
         from apps.loans.models import Loan
@@ -200,6 +208,7 @@ class ExportLoansView(APIView):
 
 class ExportPaymentsView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ExportThrottle]
 
     def get(self, request):
         from apps.payments.models import Payment
@@ -269,6 +278,7 @@ class ExportMasterReportView(APIView):
     Se actualiza con los datos en tiempo real cada vez que se descarga.
     """
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ExportThrottle]
 
     def get(self, request):
         import openpyxl
@@ -427,7 +437,8 @@ class ExportMasterReportView(APIView):
                     'Estado', 'Días Mora', 'Desembolso', 'Vencimiento']
         header_row(ws2, 3, headers2)
 
-        all_loans = loan_qs.select_related('customer', 'product', 'branch').order_by('-created_at')
+        # FIX #15: Limitar a 10000 registros para evitar problemas de memoria
+        all_loans = loan_qs.select_related('customer', 'product', 'branch').order_by('-created_at')[:10000]
         for i, ln in enumerate(all_loans, 4):
             tot = _fmt_decimal(ln.outstanding_principal) + _fmt_decimal(ln.outstanding_interest) + _fmt_decimal(ln.outstanding_late_fees)
             bg = 'FFF7ED' if ln.days_past_due > 30 else ('FEF3C7' if ln.days_past_due > 0 else ('F9FAFB' if i % 2 == 0 else 'FFFFFF'))

@@ -1,6 +1,7 @@
 """Solicitudes de préstamo y workflow de aprobación."""
 from django.db import models
 from apps.core.models import BaseModel
+from apps.core.validators import validate_file_extension, validate_file_size
 
 
 class LoanApplication(BaseModel):
@@ -69,7 +70,7 @@ class LoanApplication(BaseModel):
     def save(self, *args, **kwargs):
         if not self.application_number:
             from apps.core.utils import generate_code
-            self.application_number = generate_code('SOL', 8)
+            self.application_number = generate_code('SOL', 8, model_class=type(self), field_name='application_number')
         super().save(*args, **kwargs)
 
 
@@ -101,7 +102,8 @@ class ApplicationDocument(models.Model):
     application = models.ForeignKey(LoanApplication, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=50)
     document_name = models.CharField(max_length=200)
-    file = models.FileField(upload_to='applications/documents/%Y/%m/')
+    file = models.FileField(upload_to='applications/documents/%Y/%m/',
+                            validators=[validate_file_extension, validate_file_size])
     is_required = models.BooleanField(default=True)
     is_verified = models.BooleanField(default=False)
     verified_by = models.ForeignKey(

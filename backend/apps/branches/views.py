@@ -1,13 +1,14 @@
 from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import Branch
 from .serializers import BranchSerializer, BranchListSerializer
 
 
 class BranchViewSet(viewsets.ModelViewSet):
     queryset = Branch.objects.filter(is_active=True).select_related('manager').prefetch_related('settings')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('branches')]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['is_active', 'is_main']
     search_fields = ['name', 'code', 'city']

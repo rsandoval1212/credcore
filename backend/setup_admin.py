@@ -55,14 +55,13 @@ user, created = User.objects.get_or_create(
 )
 
 if created:
-    user.set_password('AdminCredCore123!')
+    _pwd = os.environ.get('CREDCORE_ADMIN_PASSWORD', 'AdminCredCore123!')
+    user.set_password(_pwd)
     user.save()
     user.roles.add(admin_role)
     print(f"✅ Usuario administrador creado:")
     print(f"   Email: admin@credcore.local")
-    print(f"   Usuario: admin")
-    print(f"   Contraseña: AdminCredCore123!")
+    print(f"   Contraseña: (variable CREDCORE_ADMIN_PASSWORD o default)")
 else:
     print("⚠️ El usuario administrador ya existe")
     print(f"   Email: admin@credcore.local")
-    print(f"   Usuario: admin")

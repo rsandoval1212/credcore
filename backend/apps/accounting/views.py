@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import AccountType, Account, AccountingPeriod, JournalEntry, JournalEntryLine
 from .serializers import (
     AccountTypeSerializer, AccountSerializer,
@@ -17,13 +18,13 @@ from .serializers import (
 class AccountTypeViewSet(viewsets.ModelViewSet):
     queryset           = AccountType.objects.all().order_by('code')
     serializer_class   = AccountTypeSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('accounting')]
 
 
 class AccountViewSet(viewsets.ModelViewSet):
     queryset           = Account.objects.filter(is_active=True).select_related('account_type', 'parent').order_by('code')
     serializer_class   = AccountSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('accounting')]
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields   = ['account_type', 'is_detail', 'allows_transactions', 'level']
     search_fields      = ['code', 'name', 'description']
@@ -52,7 +53,7 @@ class AccountViewSet(viewsets.ModelViewSet):
 class AccountingPeriodViewSet(viewsets.ModelViewSet):
     queryset           = AccountingPeriod.objects.all().order_by('-start_date')
     serializer_class   = AccountingPeriodSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('accounting')]
 
     @action(detail=True, methods=['post'])
     def close(self, request, pk=None):
@@ -81,7 +82,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
         'period', 'branch', 'created_by'
     ).prefetch_related('lines__account').order_by('-entry_date', '-created_at')
     serializer_class   = JournalEntrySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('accounting')]
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields   = ['status', 'period', 'branch']
     search_fields      = ['entry_number', 'description', 'reference']

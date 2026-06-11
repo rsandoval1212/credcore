@@ -1,26 +1,29 @@
 import { useState, useEffect } from 'react'
 
 /**
- * Detecta el estado de conexión combinando:
- * 1. navigator.onLine (señal del SO/navegador)
- * 2. Ping real al backend cada 15s usando el endpoint /api/v1/health/
- *    (público, sin autenticación — responde 200 {"status":"ok"})
+ * Detecta si el backend está accesible.
  *
- * Lógica:
- * - Si navigator.onLine es false → offline inmediato (sin ping)
- * - Si el ping responde con status 200 → online
- * - Si el ping falla o da error de red → offline
- * - Timeout de 5s para el ping
+ * En modo desktop (pywebview) o localhost, NO depende de navigator.onLine
+ * ya que el backend corre localmente y no necesita internet.
+ *
+ * Solo se marca offline si el ping al health endpoint falla.
  */
 export function useOnlineStatus() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [isOnline, setIsOnline] = useState(true) // Optimista: asumir online
 
   useEffect(() => {
     let cancelled = false
 
+    // Detectar si estamos en modo local/desktop
+    const isLocalMode =
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      !!(window as any).pywebview
+
     const verifyConnection = async () => {
-      // Atajo rápido: si el navegador ya sabe que está offline, no pinguear
-      if (!navigator.onLine) {
+      // En modo local, NO usar navigator.onLine (puede ser false sin internet)
+      // Solo verificar si el backend responde
+      if (!isLocalMode && !navigator.onLine) {
         if (!cancelled) setIsOnline(false)
         return
       }
@@ -36,24 +39,42 @@ export function useOnlineStatus() {
         })
         clearTimeout(timer)
 
-        if (!cancelled) setIsOnline(res.ok) // solo 200 cuenta como online
+        if (!cancelled) setIsOnline(res.ok)
       } catch {
-        // Error de red, timeout, o CORS → offline
-        if (!cancelled) setIsOnline(false)
+        // En modo local, si el health falla probablemente el backend
+        // aún está arrancando — no marcar offline inmediatamente
+        if (!cancelled) {
+          if (isLocalMode) {
+            // Reintentar en 3s antes de marcar offline
+            setTimeout(async () => {
+              try {
+                const r = await fetch('/api/v1/health/', { method: 'GET' })
+                if (!cancelled) setIsOnline(r.ok)
+              } catch {
+                if (!cancelled) setIsOnline(false)
+              }
+            }, 3000)
+          } else {
+            setIsOnline(false)
+          }
+        }
       }
     }
 
     const handleOnline  = () => verifyConnection()
-    const handleOffline = () => setIsOnline(false)
+    const handleOffline = () => {
+      // En modo local, ignorar el evento offline del navegador
+      if (!isLocalMode) setIsOnline(false)
+    }
 
     window.addEventListener('online',  handleOnline)
     window.addEventListener('offline', handleOffline)
 
-    // Ping inmediato al montar
+    // Ping inmediato
     verifyConnection()
 
-    // Ping periódico cada 15s
-    const id = setInterval(verifyConnection, 15_000)
+    // Ping periódico cada 30s (más largo para no saturar en desktop)
+    const id = setInterval(verifyConnection, isLocalMode ? 30_000 : 15_000)
 
     return () => {
       cancelled = true

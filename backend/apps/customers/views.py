@@ -4,6 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import (
     Customer, CustomerDocument, CustomerActivity,
     CustomerCreditEvaluation, CustomerReference,
@@ -19,13 +20,23 @@ from .serializers import (
 )
 
 
-class CustomerViewSet(viewsets.ModelViewSet):
+from apps.core.mixins import SoftDeleteViewSetMixin
+
+
+class CustomerViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     queryset = Customer.objects.filter(is_deleted=False).select_related(
         'branch', 'assigned_officer', 'financial_summary', 'employment', 'business', 'financial_info'
     ).prefetch_related('references', 'commercial_references', 'bank_references', 'documents', 'guarantors')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('customers')]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'risk_level', 'customer_type', 'branch', 'is_blacklisted']
+    filterset_fields = {
+        'status': ['exact'],
+        'risk_level': ['exact'],
+        'customer_type': ['exact'],
+        'branch': ['exact'],
+        'is_blacklisted': ['exact'],
+        'created_at': ['gte', 'lte', 'date__gte', 'date__lte'],
+    }
     search_fields = ['first_name', 'last_name', 'company_name', 'id_number', 'customer_code', 'phone1', 'email']
     ordering_fields = ['created_at', 'last_name', 'outstanding_balance', 'credit_score']
 

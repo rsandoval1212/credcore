@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Settings, Building2, Save, Upload, Image as ImageIcon,
   Database, Clock, CheckCircle, AlertTriangle, Play, RefreshCw, HardDrive,
-  Download, RotateCcw, ShieldAlert, FolderOpen,
+  Download, RotateCcw, ShieldAlert, FolderOpen, Headset,
+  Phone, Mail, MessageCircle, Instagram, ExternalLink, Code2, Heart,
 } from 'lucide-react'
 import {
   companyService, backupService,
@@ -14,7 +15,7 @@ import toast from 'react-hot-toast'
 const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 export default function ConfigPage() {
-  const [tab, setTab] = useState<'company' | 'backup'>('company')
+  const [tab, setTab] = useState<'company' | 'backup' | 'support'>('company')
 
   return (
     <div className="p-6 space-y-6">
@@ -28,6 +29,7 @@ export default function ConfigPage() {
         {[
           { id: 'company', label: 'Empresa', icon: Building2 },
           { id: 'backup',  label: 'Copias de Seguridad', icon: Database },
+          { id: 'support', label: 'Soporte', icon: Headset },
         ].map(t => {
           const Icon = t.icon
           return (
@@ -41,6 +43,7 @@ export default function ConfigPage() {
 
       {tab === 'company' && <CompanyTab />}
       {tab === 'backup'  && <BackupTab />}
+      {tab === 'support' && <SupportTab />}
     </div>
   )
 }
@@ -452,6 +455,118 @@ function BackupTab() {
           </div>
         )}
       </Section>
+    </div>
+  )
+}
+
+// ── Tab Soporte ─────────────────────────────────────────────────────────────
+function SupportTab() {
+  const contactLinks = [
+    {
+      icon: <Phone className="h-5 w-5" />,
+      label: 'Teléfono',
+      value: '849-442-2733',
+      href: 'tel:+18494422733',
+      color: 'bg-blue-50 border-blue-100 text-blue-700',
+      iconBg: 'bg-blue-100',
+    },
+    {
+      icon: <MessageCircle className="h-5 w-5" />,
+      label: 'WhatsApp',
+      value: '849-442-2733',
+      href: 'https://wa.me/18494422733',
+      color: 'bg-green-50 border-green-100 text-green-700',
+      iconBg: 'bg-green-100',
+    },
+    {
+      icon: <Mail className="h-5 w-5" />,
+      label: 'Correo Electrónico',
+      value: 'sandoval.pm12@gmail.com',
+      href: 'mailto:sandoval.pm12@gmail.com',
+      color: 'bg-red-50 border-red-100 text-red-700',
+      iconBg: 'bg-red-100',
+    },
+    {
+      icon: <Instagram className="h-5 w-5" />,
+      label: 'Instagram',
+      value: '@sandoval.pm',
+      href: 'https://instagram.com/sandoval.pm',
+      color: 'bg-purple-50 border-purple-100 text-purple-700',
+      iconBg: 'bg-purple-100',
+    },
+  ]
+
+  return (
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-8 text-center text-white shadow-lg">
+        <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mx-auto mb-4">
+          <Headset className="h-10 w-10 text-white" />
+        </div>
+        <h2 className="text-2xl font-black">Soporte Técnico</h2>
+        <p className="text-primary-100 mt-2 text-sm">
+          ¿Necesitas ayuda? Estoy disponible para asistirte con cualquier situación del sistema.
+        </p>
+      </div>
+
+      {/* Desarrollador */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 rounded-2xl flex items-center justify-center shadow-md">
+            <span className="text-2xl font-black text-white">RS</span>
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-gray-900">Ronny Sandoval</h3>
+            <p className="text-sm text-gray-500 flex items-center gap-1.5 mt-0.5">
+              <Code2 className="h-3.5 w-3.5" /> Desarrollador del Sistema
+            </p>
+          </div>
+        </div>
+
+        {/* Contact cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {contactLinks.map(c => (
+            <a key={c.label} href={c.href} target="_blank" rel="noopener noreferrer"
+              className={`flex items-center gap-3 p-4 rounded-xl border transition-all hover:shadow-md hover:scale-[1.02] ${c.color}`}>
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${c.iconBg}`}>
+                {c.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold opacity-70">{c.label}</p>
+                <p className="font-bold text-sm truncate">{c.value}</p>
+              </div>
+              <ExternalLink className="h-4 w-4 opacity-40 shrink-0" />
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Horarios */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+        <h3 className="font-bold text-gray-700 text-sm mb-4 flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary-500" /> Horario de Soporte
+        </h3>
+        <div className="space-y-2">
+          {[
+            { day: 'Lunes a Viernes', hours: '8:00 AM - 6:00 PM', active: true },
+            { day: 'Sábados', hours: '9:00 AM - 1:00 PM', active: true },
+            { day: 'Domingos y Feriados', hours: 'Solo emergencias vía WhatsApp', active: false },
+          ].map(s => (
+            <div key={s.day} className={`flex items-center justify-between py-3 px-4 rounded-lg ${s.active ? 'bg-emerald-50' : 'bg-gray-50'}`}>
+              <span className="text-sm font-medium text-gray-700">{s.day}</span>
+              <span className={`text-sm font-semibold ${s.active ? 'text-emerald-600' : 'text-gray-400'}`}>{s.hours}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="text-center py-4">
+        <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+          Hecho con <Heart className="h-3 w-3 text-red-400 fill-red-400" /> por Ronny Sandoval
+        </p>
+        <p className="text-xs text-gray-300 mt-1">CredCore v1.0 — Sistema de Gestión de Créditos</p>
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  LayoutDashboard, Users, CreditCard, DollarSign,
+  LayoutDashboard, Users, CreditCard, DollarSign, ArrowLeftRight,
   Archive, Shield, BarChart3, Settings,
   ClipboardList, Wallet, Calculator, AlertTriangle,
 } from 'lucide-react'
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/payments', icon: DollarSign, label: 'Cobros' },
   { to: '/collections', icon: AlertTriangle, label: 'Cobranza' },
   { to: '/cash', icon: Wallet, label: 'Caja' },
+  { to: '/exchange', icon: ArrowLeftRight, label: 'Cambio USD' },
   { to: '/guarantees', icon: Archive, label: 'Garantías' },
   { to: '/reports', icon: BarChart3, label: 'Reportes' },
   { to: '/calculator', icon: Calculator, label: 'Calculadora' },

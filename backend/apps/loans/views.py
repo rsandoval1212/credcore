@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import Loan, LoanSchedule
 from .serializers import (
     LoanListSerializer, LoanDetailSerializer,
@@ -14,13 +15,23 @@ from .serializers import (
 )
 
 
-class LoanViewSet(viewsets.ModelViewSet):
+from apps.core.mixins import SoftDeleteViewSetMixin
+
+
+class LoanViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     queryset = Loan.objects.filter(is_deleted=False).select_related(
         'customer', 'product', 'branch', 'officer'
     ).prefetch_related('schedule')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('loans')]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'branch', 'product', 'officer']
+    filterset_fields = {
+        'status': ['exact'],
+        'branch': ['exact'],
+        'product': ['exact'],
+        'officer': ['exact'],
+        'created_at': ['gte', 'lte', 'date__gte', 'date__lte'],
+        'disbursement_date': ['gte', 'lte'],
+    }
     search_fields = [
         'loan_number',
         'customer__first_name', 'customer__last_name',

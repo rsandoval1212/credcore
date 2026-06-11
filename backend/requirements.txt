@@ -1,0 +1,54 @@
+# CredCore - Dependencias de Producción
+# Generado: 2026-06-09
+# Python: 3.13
+
+# === Framework ===
+Django==5.0.6
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.3.1
+django-filter==24.2
+django-environ==0.11.2
+drf-spectacular==0.27.2
+
+# === Base de datos ===
+sqlparse==0.5.5
+
+# === Seguridad y Autenticación ===
+cryptography==46.0.3
+PyJWT==2.10.1
+pyotp==2.9.0
+bcrypt==5.0.0
+
+# === Tareas asíncronas ===
+celery==5.4.0
+django-celery-beat==2.9.0
+django_celery_results==2.6.0
+redis==5.0.4
+
+# === Reportes y PDFs ===
+reportlab==4.4.7
+xhtml2pdf==0.2.16
+openpyxl==3.1.2
+qrcode==8.2
+num2words==0.5.13
+svglib==1.6.0
+
+# === Utilidades ===
+pillow==12.1.0
+phonenumbers==9.0.31
+python-dateutil==2.9.0.post0
+python-decouple==3.8
+pytz==2025.2
+gunicorn==22.0.0
+requests==2.32.5
+
+# === Auditoría ===
+django-auditlog==3.4.1
+
+# === Canales (WebSocket) ===
+channels==4.3.2
+
+# === Testing ===
+pytest==8.2.1
+pytest-django==4.8.0

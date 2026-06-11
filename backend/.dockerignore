@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+venv
+.venv
+*.egg-info
+.git
+.env
+.env.local
+db.sqlite3
+audit.log
+media/*
+staticfiles/*

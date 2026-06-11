@@ -29,4 +29,7 @@ urlpatterns = [
 
     # Panel de inversionistas
     path('investors/', v.InvestorDashboardView.as_view(), name='investor-dashboard'),
+
+    # FIX #20: Búsqueda global
+    path('search/', v.GlobalSearchView.as_view(), name='global-search'),
 ]

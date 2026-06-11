@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Shield, Search, RefreshCw, ChevronLeft, ChevronRight, Car, Home, Wrench } from 'lucide-react'
+import { Shield, Search, RefreshCw, ChevronLeft, ChevronRight, Car, Home, Wrench, X } from 'lucide-react'
+import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -28,6 +29,7 @@ export default function GuaranteesPage() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -39,10 +41,14 @@ export default function GuaranteesPage() {
       if (search) params.search = search
       if (typeFilter) params.guarantee_type = typeFilter
       if (statusFilter) params.status = statusFilter
+      if (dateRange) {
+        params.created_at__date__gte = dateRange.from
+        params.created_at__date__lte = dateRange.to
+      }
       const r = await api.get('/guarantees/', { params })
       setGuarantees(r.data.results); setTotalPages(r.data.total_pages || 1); setTotalCount(r.data.count || 0)
     } catch { toast.error('Error cargando garantías') } finally { setLoading(false) }
-  }, [page, search, typeFilter, statusFilter])
+  }, [page, search, typeFilter, statusFilter, dateRange])
 
   useEffect(() => { load() }, [load])
 
@@ -72,6 +78,13 @@ export default function GuaranteesPage() {
           <option value="FORECLOSED">Ejecutada</option>
         </select>
         <button onClick={load} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><RefreshCw className="h-4 w-4 text-gray-500" /></button>
+        {(search || typeFilter || statusFilter || dateRange) && (
+          <button onClick={() => { setSearch(''); setTypeFilter(''); setStatusFilter(''); setDateRange(null); setPage(1) }}
+            className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+            <X className="h-3 w-3" /> Limpiar
+          </button>
+        )}
+        <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} className="mt-3 w-full" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

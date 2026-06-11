@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
 import PaymentFormModal from './PaymentFormModal'
 import ReceiptWhatsAppButton from '@/components/notifications/ReceiptWhatsAppButton'
 
@@ -44,6 +45,7 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -56,11 +58,15 @@ export default function PaymentsPage() {
       if (search) params.search = search
       if (methodFilter) params.payment_method = methodFilter
       if (typeFilter) params.payment_type = typeFilter
+      if (dateRange) {
+        params.payment_date__gte = dateRange.from
+        params.payment_date__lte = dateRange.to
+      }
       const r = await api.get('/payments/', { params })
       setPayments(r.data.results); setTotalPages(r.data.total_pages || 1); setTotalCount(r.data.count || 0)
     } catch { toast.error('Error cargando cobros') }
     finally { setLoading(false) }
-  }, [page, search, methodFilter, typeFilter])
+  }, [page, search, methodFilter, typeFilter, dateRange])
 
   const loadStats = useCallback(async () => {
     try { const r = await api.get('/payments/stats/'); setStats(r.data) } catch {}
@@ -114,11 +120,12 @@ export default function PaymentsPage() {
           <option value="FULL_PAYMENT">Cancelación Total</option>
         </select>
         <button onClick={() => { load(); loadStats() }} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50"><RefreshCw className="h-4 w-4 text-gray-500" /></button>
-        {(search || methodFilter || typeFilter) && (
-          <button onClick={() => { setSearch(''); setMethodFilter(''); setTypeFilter(''); setPage(1) }} className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
+        {(search || methodFilter || typeFilter || dateRange) && (
+          <button onClick={() => { setSearch(''); setMethodFilter(''); setTypeFilter(''); setDateRange(null); setPage(1) }} className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
             <Filter className="h-3 w-3" /> Limpiar
           </button>
         )}
+        <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} className="mt-3 w-full" />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

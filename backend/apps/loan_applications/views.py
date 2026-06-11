@@ -1,11 +1,13 @@
 """Workflow completo de solicitudes de préstamo."""
 from decimal import Decimal
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import LoanApplication, ApplicationWorkflowLog, ApplicationDocument
 from .serializers import (
     LoanApplicationListSerializer, LoanApplicationDetailSerializer,
@@ -13,13 +15,23 @@ from .serializers import (
 )
 
 
-class LoanApplicationViewSet(viewsets.ModelViewSet):
+from apps.core.mixins import SoftDeleteViewSetMixin
+
+
+class LoanApplicationViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
     queryset = LoanApplication.objects.filter(is_deleted=False).select_related(
         'customer', 'product', 'branch', 'assigned_to', 'rejected_by'
     ).prefetch_related('workflow_logs', 'documents')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('loan_applications')]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'branch', 'product', 'assigned_to', 'risk_level']
+    filterset_fields = {
+        'status': ['exact'],
+        'branch': ['exact'],
+        'product': ['exact'],
+        'assigned_to': ['exact'],
+        'risk_level': ['exact'],
+        'created_at': ['gte', 'lte', 'date__gte', 'date__lte'],
+    }
     search_fields = [
         'application_number',
         'customer__first_name', 'customer__last_name',
@@ -171,9 +183,10 @@ class LoanApplicationViewSet(viewsets.ModelViewSet):
         self._log(app, 'CANCELLED', request.user, request.data.get('reason', 'Cancelada'))
         return Response(LoanApplicationDetailSerializer(app).data)
 
+    @transaction.atomic
     @action(detail=True, methods=['post'])
     def disburse(self, request, pk=None):
-        """Marcar como desembolsada y crear el préstamo."""
+        """Marcar como desembolsada y crear el préstamo (atómico)."""
         app = self.get_object()
         if app.status != 'APPROVED':
             return Response({'detail': 'Solo solicitudes aprobadas pueden desembolsarse.'}, status=400)
@@ -249,15 +262,15 @@ class LoanApplicationViewSet(viewsets.ModelViewSet):
     def stats(self, request):
         """Estadísticas del módulo de solicitudes."""
         qs = self.get_queryset()
-        from django.db.models import Count, Sum
+        from django.db.models import Count, Sum, Q
         data = qs.aggregate(
             total=Count('id'),
-            draft=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(status='DRAFT')),
-            submitted=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(status='SUBMITTED')),
-            under_review=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(status='UNDER_REVIEW')),
-            approved=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(status='APPROVED')),
-            rejected=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(status='REJECTED')),
-            disbursed=Count('id', filter=__import__('django.db.models', fromlist=['Q']).Q(status='DISBURSED')),
+            draft=Count('id', filter=Q(status='DRAFT')),
+            submitted=Count('id', filter=Q(status='SUBMITTED')),
+            under_review=Count('id', filter=Q(status='UNDER_REVIEW')),
+            approved=Count('id', filter=Q(status='APPROVED')),
+            rejected=Count('id', filter=Q(status='REJECTED')),
+            disbursed=Count('id', filter=Q(status='DISBURSED')),
             total_requested=Sum('requested_amount'),
             total_approved=Sum('approved_amount'),
         )

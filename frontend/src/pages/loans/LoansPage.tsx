@@ -7,6 +7,7 @@ import {
   CheckCircle, TrendingDown, TrendingUp, Banknote, Clock,
 } from 'lucide-react'
 import { loansService } from '@/services/loans'
+import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
 import type { Loan, LoanStatus, LoanStats } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -35,6 +36,7 @@ export default function LoansPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -45,6 +47,10 @@ export default function LoansPage() {
       const params: Record<string, unknown> = { page }
       if (search) params.search = search
       if (statusFilter) params.status = statusFilter
+      if (dateRange) {
+        params.created_at__date__gte = dateRange.from
+        params.created_at__date__lte = dateRange.to
+      }
       const res = await loansService.list(params)
       setLoans(res.data.results)
       setTotalPages(res.data.total_pages || 1)
@@ -54,7 +60,7 @@ export default function LoansPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, statusFilter])
+  }, [page, search, statusFilter, dateRange])
 
   const loadStats = useCallback(async () => {
     try {
@@ -151,13 +157,14 @@ export default function LoansPage() {
           <button onClick={() => { load(); loadStats() }} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50">
             <RefreshCw className="h-4 w-4 text-gray-500" />
           </button>
-          {(statusFilter || search) && (
-            <button onClick={() => { setStatusFilter(''); setSearch(''); setPage(1) }}
+          {(statusFilter || search || dateRange) && (
+            <button onClick={() => { setStatusFilter(''); setSearch(''); setDateRange(null); setPage(1) }}
               className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50">
               <Filter className="h-3 w-3" /> Limpiar
             </button>
           )}
         </div>
+        <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} className="mt-3" />
       </div>
 
       {/* Table */}

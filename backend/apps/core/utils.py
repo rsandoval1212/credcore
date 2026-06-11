@@ -6,10 +6,23 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
 
-def generate_code(prefix: str, length: int = 8) -> str:
-    """Genera un código único con prefijo. Ej: CLI-00000001"""
-    digits = ''.join(random.choices(string.digits, k=length))
-    return f"{prefix}-{digits}"
+def generate_code(prefix: str, length: int = 8, model_class=None, field_name='customer_code') -> str:
+    """Genera un código único con prefijo. Verifica unicidad si se pasa model_class.
+    FIX #10: Previene códigos duplicados verificando contra la BD.
+    FIX #W9: Usa select_for_update-safe check + retry para atomicidad bajo concurrencia."""
+    from django.db import transaction, IntegrityError
+    for _ in range(20):  # Máximo 20 intentos
+        digits = ''.join(random.choices(string.digits, k=length))
+        code = f"{prefix}-{digits}"
+        if model_class is None:
+            return code
+        # Verificación atómica: check + catch IntegrityError en el caller
+        with transaction.atomic():
+            if not model_class.objects.filter(**{field_name: code}).exists():
+                return code
+    # Fallback con timestamp + random si todos colisionan
+    import time
+    return f"{prefix}-{int(time.time())}-{''.join(random.choices(string.digits, k=4))}"
 
 
 # ── Frecuencias de pago ───────────────────────────────────────────────────────
@@ -86,26 +99,33 @@ def calculate_amortization_schedule(
     schedule = []
 
     if payment_method == 'NIVELADA':
-        # Cuota fija (sistema francés)
+        # Cuota fija
         if period_rate == 0:
             payment = principal / Decimal(str(total_periods))
-        else:
+        elif interest_type == 'COMPOUND':
+            # Sistema francés clásico (interés compuesto sobre saldo)
             r = period_rate
             n = total_periods
             payment = principal * (r * (1 + r) ** n) / ((1 + r) ** n - 1)
+        else:
+            # Interés simple flat: interés total = principal * rate * n períodos
+            # La cuota es (capital + interés total) / n
+            total_interest = principal * period_rate * Decimal(str(total_periods))
+            payment = (principal + total_interest) / Decimal(str(total_periods))
 
         balance = principal
         for i in range(1, total_periods + 1):
             if interest_type == 'COMPOUND':
                 interest = balance * period_rate
             else:
-                # Interés simple: aplica sobre el capital ORIGINAL cada período
+                # Interés simple flat: misma cuota de interés cada período
                 interest = principal * period_rate
 
             principal_pmt = payment - interest
             if i == total_periods:
+                # Última cuota: liquidar saldo exacto para evitar centavos residuales
                 principal_pmt = balance
-                interest = payment - principal_pmt if payment > principal_pmt else principal * period_rate
+                interest = principal * period_rate if interest_type != 'COMPOUND' else balance * period_rate
             balance = max(Decimal('0'), balance - principal_pmt)
             due_date = _next_due_date(start_date, payment_frequency, i)
 

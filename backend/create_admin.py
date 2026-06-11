@@ -1,5 +1,8 @@
+import os
 from django.contrib.auth.hashers import make_password
 from apps.users.models import User, Role
+
+_pwd = os.environ.get('CREDCORE_ADMIN_PASSWORD', 'AdminCredCore123!')
 
 # Create admin role
 admin_role, _ = Role.objects.get_or_create(
@@ -17,7 +20,7 @@ admin_user, created = User.objects.get_or_create(
         'is_staff': True,
         'is_superuser': True,
         'is_active': True,
-        'password': make_password('AdminCredCore123!')
+        'password': make_password(_pwd)
     }
 )
 
@@ -27,6 +30,6 @@ admin_user.roles.add(admin_role)
 if created:
     print(f"✅ Usuario admin creado exitosamente")
     print(f"   Email: admin@credcore.local")
-    print(f"   Contraseña: AdminCredCore123!")
+    print(f"   Contraseña: (variable CREDCORE_ADMIN_PASSWORD)")
 else:
     print(f"ℹ️  Usuario admin ya existía")

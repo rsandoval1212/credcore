@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
+from django.core.cache import cache
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -12,6 +13,13 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # FIX #14: Cache dashboard queries (60s TTL, per-user/branch)
+        branch_id = getattr(request.user, 'branch_id', None) or 'all'
+        cache_key = f'dashboard:{branch_id}:{request.user.is_superuser}'
+        cached = cache.get(cache_key)
+        if cached:
+            return Response(cached)
+
         from apps.loans.models import Loan
         from apps.payments.models import Payment
         from apps.customers.models import Customer
@@ -91,6 +99,7 @@ class DashboardView(APIView):
             'today': today.isoformat(),
         }
 
+        cache.set(cache_key, data, 60)  # 60s TTL
         return Response(data)
 
 
@@ -792,9 +801,21 @@ class BackupRunView(APIView):
                 raise Exception(f'Archivo de DB no encontrado: {db_path}')
 
             shutil.copy2(db_path, dest)
+
+            # RIESGO 5: Cifrar backup
+            try:
+                from apps.core.backup_encryption import encrypt_backup
+                enc_path = encrypt_backup(dest)
+                file_name = file_name + '.enc'
+                dest = enc_path
+            except ImportError:
+                pass  # cryptography no instalada, backup sin cifrar
+
             size = os.path.getsize(dest)
             duration = round(time.time() - start_time, 2)
 
+            record.file_name = file_name
+            record.file_path = dest
             record.status = 'COMPLETED'
             record.completed_at = timezone.now()
             record.duration_seconds = duration
@@ -840,10 +861,35 @@ class BackupDownloadView(APIView):
         if not record.file_path or not os.path.exists(record.file_path):
             return Response({'detail': 'El archivo ya no existe en el servidor.'}, status=404)
 
-        f = open(record.file_path, 'rb')
+        # FIX M4: Prevenir path traversal — solo permitir archivos en el directorio de backups
+        from django.conf import settings as django_settings
+        backups_dir = os.path.realpath(os.path.join(str(django_settings.BASE_DIR), 'backups'))
+        real_path = os.path.realpath(record.file_path)
+        if not real_path.startswith(backups_dir):
+            return Response({'detail': 'Ruta de archivo no permitida.'}, status=403)
+
+        # RIESGO 5: Descifrar si está cifrado
+        serve_path = real_path
+        tmp_decrypted = None
+        if real_path.endswith('.enc'):
+            try:
+                from apps.core.backup_encryption import decrypt_backup
+                serve_path = decrypt_backup(real_path)
+                tmp_decrypted = serve_path
+            except Exception:
+                return Response({'detail': 'Error al descifrar el backup.'}, status=500)
+
+        download_name = record.file_name.replace('.enc', '')
+        f = open(serve_path, 'rb')
         response = FileResponse(f, content_type='application/octet-stream')
-        response['Content-Disposition'] = f'attachment; filename="{record.file_name}"'
-        response['Content-Length'] = os.path.getsize(record.file_path)
+        response['Content-Disposition'] = f'attachment; filename="{download_name}"'
+        response['Content-Length'] = os.path.getsize(serve_path)
+
+        # Limpiar archivo temporal descifrado después de servir
+        if tmp_decrypted:
+            import atexit
+            atexit.register(lambda p=tmp_decrypted: os.path.exists(p) and os.remove(p))
+
         return response
 
 
@@ -896,14 +942,29 @@ class BackupRestoreView(APIView):
                 for chunk in backup_file.chunks():
                     f.write(chunk)
 
-            # 3. Validar que es una DB SQLite válida
+            # FIX C3: Validación estricta del esquema del backup
             import sqlite3
             conn = sqlite3.connect(tmp_path)
-            tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+            tables = [t[0] for t in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
             conn.close()
-            if len(tables) < 3:
+
+            # Verificar tablas críticas de CredCore
+            required_tables = {'users_user', 'loans_loan', 'customers_customer', 'payments_payment'}
+            found_required = required_tables.intersection(set(tables))
+            if len(found_required) < len(required_tables):
+                missing = required_tables - found_required
                 os.remove(tmp_path)
-                return Response({'detail': 'El archivo no parece una base de datos válida de CredCore.'}, status=400)
+                return Response({
+                    'detail': f'El archivo no es una base de datos válida de CredCore. Tablas faltantes: {", ".join(missing)}'
+                }, status=400)
+
+            # Verificar que tiene al menos un admin
+            conn2 = sqlite3.connect(tmp_path)
+            admin_count = conn2.execute("SELECT COUNT(*) FROM users_user WHERE is_superuser=1 AND is_active=1").fetchone()[0]
+            conn2.close()
+            if admin_count == 0:
+                os.remove(tmp_path)
+                return Response({'detail': 'El backup no contiene usuarios administradores activos. Restauración rechazada.'}, status=400)
 
             # 4. Reemplazar la DB actual
             shutil.copy2(tmp_path, db_path)
@@ -1189,3 +1250,66 @@ class InvestorDashboardView(APIView):
             },
             'generated_at': today.isoformat(),
         })
+
+
+# ── FIX #20: Búsqueda Global ────────────────────────────────────────────────
+
+class GlobalSearchView(APIView):
+    """Busca en clientes, préstamos y pagos con un solo query."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        q = request.query_params.get('q', '').strip()
+        if len(q) < 2:
+            return Response({'results': [], 'message': 'Mínimo 2 caracteres'})
+
+        from apps.customers.models import Customer
+        from apps.loans.models import Loan
+        from apps.payments.models import Payment
+
+        results = []
+        limit = 10
+
+        # Clientes
+        customers = Customer.objects.filter(
+            is_deleted=False
+        ).filter(
+            Q(first_name__icontains=q) | Q(last_name__icontains=q) |
+            Q(id_number__icontains=q) | Q(customer_code__icontains=q) |
+            Q(phone1__icontains=q) | Q(email__icontains=q)
+        )[:limit]
+        for c in customers:
+            results.append({
+                'type': 'customer', 'id': str(c.pk),
+                'title': c.get_full_name(), 'subtitle': f'{c.customer_code} · {c.id_number}',
+                'url': f'/customers/{c.pk}',
+            })
+
+        # Préstamos
+        loans = Loan.objects.filter(is_deleted=False).filter(
+            Q(loan_number__icontains=q) |
+            Q(customer__first_name__icontains=q) | Q(customer__last_name__icontains=q) |
+            Q(customer__id_number__icontains=q)
+        ).select_related('customer')[:limit]
+        for ln in loans:
+            results.append({
+                'type': 'loan', 'id': str(ln.pk),
+                'title': ln.loan_number,
+                'subtitle': f'{ln.customer.get_full_name() if ln.customer else ""} · {ln.get_status_display()}',
+                'url': f'/loans/{ln.pk}',
+            })
+
+        # Pagos
+        payments = Payment.objects.filter(is_deleted=False).filter(
+            Q(payment_number__icontains=q) | Q(receipt_number__icontains=q) |
+            Q(customer__first_name__icontains=q) | Q(customer__last_name__icontains=q)
+        ).select_related('customer')[:limit]
+        for p in payments:
+            results.append({
+                'type': 'payment', 'id': str(p.pk),
+                'title': p.receipt_number,
+                'subtitle': f'{p.customer.get_full_name() if p.customer else ""} · RD$ {p.total_amount:,.2f}',
+                'url': f'/payments/{p.pk}',
+            })
+
+        return Response({'results': results, 'total': len(results)})

@@ -6,6 +6,7 @@ const api = axios.create({
   baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
   timeout: 10_000,
+  withCredentials: true,  // Enviar httpOnly cookies automáticamente
 })
 
 // Marcador para evitar interceptar requests internas (ping de online check)
@@ -41,13 +42,18 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
       try {
+        // El refresh token se envía automáticamente via httpOnly cookie
+        // También enviamos el que tenemos en memoria como fallback
         const refresh = useAuthStore.getState().refreshToken
-        if (refresh) {
-          const { data } = await axios.post('/api/v1/auth/token/refresh/', { refresh })
-          useAuthStore.getState().setTokens(data.access, refresh)
+        const { data } = await axios.post('/api/v1/auth/token/refresh/',
+          refresh ? { refresh } : {},
+          { withCredentials: true }
+        )
+        if (data.access) {
+          useAuthStore.getState().setTokens(data.access, data.refresh || refresh || '')
           original.headers!.Authorization = `Bearer ${data.access}`
-          return api(original)
         }
+        return api(original)
       } catch {
         // no-op: refresh falló, caemos al logout abajo
       }

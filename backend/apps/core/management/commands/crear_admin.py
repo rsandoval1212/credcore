@@ -10,10 +10,11 @@ class Command(BaseCommand):
     help = 'Crea el usuario administrador por defecto'
 
     def handle(self, *args, **options):
+        import os
         from apps.users.models import User
 
-        email = 'admin@credcore.com'
-        password = 'Admin123!'
+        email = os.environ.get('CREDCORE_ADMIN_EMAIL', 'admin@credcore.com')
+        password = os.environ.get('CREDCORE_ADMIN_PASSWORD', 'Admin123!')
 
         if User.objects.filter(email=email).exists():
             self.stdout.write(self.style.WARNING(
@@ -32,6 +33,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'\n  ✅ Administrador creado exitosamente\n'
             f'     Email:      {email}\n'
-            f'     Contraseña: {password}\n'
+            f'     Contraseña: (variable CREDCORE_ADMIN_PASSWORD)\n'
             f'     (Cámbiala en Configuracion > Usuarios)\n'
         ))

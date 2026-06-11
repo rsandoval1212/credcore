@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   BarChart3, TrendingUp, Users, CreditCard, DollarSign,
   AlertTriangle, CheckCircle, RefreshCw, Printer,
-  TrendingDown, Calendar, Percent, Coins,
+  TrendingDown, Calendar, Percent, Coins, ArrowLeftRight,
 } from 'lucide-react'
 import api from '@/services/api'
 import ExportButton from '@/components/ui/ExportButton'
@@ -178,14 +178,222 @@ function EarningsTab() {
   )
 }
 
+// ─── Tab Cambio USD ──────────────────────────────────────────────────────────
+interface ExchangeStats {
+  today_buy_count: number; today_buy_usd: number; today_buy_dop: number
+  today_sell_count: number; today_sell_usd: number; today_sell_dop: number
+  today_profit: number; month_profit: number; month_count: number
+  month_buy_usd: number; month_sell_usd: number
+  current_buy_rate: number; current_sell_rate: number; current_spread: number
+  total_profit: number; total_transactions: number
+}
+
+interface ExchangeTxn {
+  id: string; receipt_number: string; operation: string; operation_display: string
+  status: string; status_display: string; rate_applied: number
+  usd_amount: number; dop_amount: number; profit: number
+  customer_display: string; payment_method_display: string
+  created_at: string
+}
+
+const fmtUSD = (n?: number | null) =>
+  n == null ? 'US$0.00' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+const fmtRate = (n?: number | null) => n == null ? '0.0000' : Number(n).toFixed(4)
+const fmtDt = (d?: string) =>
+  !d ? '—' : new Date(d).toLocaleDateString('es-DO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+function ExchangeTab() {
+  const [stats, setStats] = useState<ExchangeStats | null>(null)
+  const [txns, setTxns] = useState<ExchangeTxn[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [s, t] = await Promise.all([
+        api.get('/currency-exchange/transactions/stats/'),
+        api.get('/currency-exchange/transactions/', { params: { ordering: '-created_at', page_size: 50 } }),
+      ])
+      setStats(s.data)
+      setTxns(t.data.results || t.data)
+    } catch {} finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  if (loading) return <div className="flex justify-center py-20"><RefreshCw className="h-6 w-6 text-primary-500 animate-spin" /></div>
+  if (!stats) return <div className="text-center py-20 text-gray-400">Sin datos de cambio de divisas</div>
+
+  const todayTotal = stats.today_buy_usd + stats.today_sell_usd
+  const todayOps = stats.today_buy_count + stats.today_sell_count
+  const monthTotal = stats.month_buy_usd + stats.month_sell_usd
+
+  return (
+    <div className="space-y-6">
+      {/* KPIs principales */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <ReportCard label="Ganancia Hoy" value={fmt(stats.today_profit)} sub={`${todayOps} operaciones`} color="emerald" icon={<DollarSign className="h-5 w-5 text-emerald-600" />} />
+        <ReportCard label="Ganancia del Mes" value={fmt(stats.month_profit)} sub={`${num(stats.month_count)} operaciones`} color="blue" icon={<TrendingUp className="h-5 w-5 text-blue-600" />} />
+        <ReportCard label="Ganancia Total" value={fmt(stats.total_profit)} sub={`${num(stats.total_transactions)} operaciones históricas`} color="purple" icon={<Coins className="h-5 w-5 text-purple-600" />} />
+        <ReportCard label="Spread Actual" value={fmtRate(stats.current_spread)} sub={`Compra: ${fmtRate(stats.current_buy_rate)} · Venta: ${fmtRate(stats.current_sell_rate)}`} color="amber" icon={<ArrowLeftRight className="h-5 w-5 text-amber-600" />} />
+      </div>
+
+      {/* Compras vs Ventas - Hoy y Mes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Hoy */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="font-bold text-gray-700 mb-4 text-sm flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-blue-500" /> Operaciones de Hoy
+          </h3>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <div className="text-xs text-blue-600 font-semibold mb-1 flex items-center justify-center gap-1">
+                <TrendingDown className="h-3 w-3" /> Compras USD
+              </div>
+              <div className="text-2xl font-black text-gray-900">{fmtUSD(stats.today_buy_usd)}</div>
+              <div className="text-xs text-gray-400 mt-1">{stats.today_buy_count} operaciones</div>
+              <div className="text-xs text-gray-500 mt-0.5">Pagado: {fmt(stats.today_buy_dop)}</div>
+            </div>
+            <div className="bg-red-50 rounded-xl p-4 text-center">
+              <div className="text-xs text-red-600 font-semibold mb-1 flex items-center justify-center gap-1">
+                <TrendingUp className="h-3 w-3" /> Ventas USD
+              </div>
+              <div className="text-2xl font-black text-gray-900">{fmtUSD(stats.today_sell_usd)}</div>
+              <div className="text-xs text-gray-400 mt-1">{stats.today_sell_count} operaciones</div>
+              <div className="text-xs text-gray-500 mt-0.5">Recibido: {fmt(stats.today_sell_dop)}</div>
+            </div>
+          </div>
+          <div className="flex justify-between items-center py-3 border-t border-gray-100">
+            <span className="text-sm text-gray-500">Volumen total hoy</span>
+            <span className="text-sm font-bold text-gray-900">{fmtUSD(todayTotal)}</span>
+          </div>
+          <div className="flex justify-between items-center py-3 border-t border-gray-100">
+            <span className="text-sm text-gray-500 font-semibold">Ganancia neta hoy</span>
+            <span className="text-sm font-black text-emerald-600">{fmt(stats.today_profit)}</span>
+          </div>
+        </div>
+
+        {/* Mes */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <h3 className="font-bold text-gray-700 mb-4 text-sm flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-purple-500" /> Resumen del Mes
+          </h3>
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="bg-blue-50 rounded-xl p-4 text-center">
+              <div className="text-xs text-blue-600 font-semibold mb-1">Compras USD (Mes)</div>
+              <div className="text-2xl font-black text-gray-900">{fmtUSD(stats.month_buy_usd)}</div>
+            </div>
+            <div className="bg-red-50 rounded-xl p-4 text-center">
+              <div className="text-xs text-red-600 font-semibold mb-1">Ventas USD (Mes)</div>
+              <div className="text-2xl font-black text-gray-900">{fmtUSD(stats.month_sell_usd)}</div>
+            </div>
+          </div>
+          <div className="flex justify-between items-center py-3 border-t border-gray-100">
+            <span className="text-sm text-gray-500">Volumen total mes</span>
+            <span className="text-sm font-bold text-gray-900">{fmtUSD(monthTotal)}</span>
+          </div>
+          <div className="flex justify-between items-center py-3 border-t border-gray-100">
+            <span className="text-sm text-gray-500">Total operaciones</span>
+            <span className="text-sm font-bold text-gray-900">{num(stats.month_count)}</span>
+          </div>
+          <div className="flex justify-between items-center py-3 border-t border-gray-100">
+            <span className="text-sm text-gray-500 font-semibold">Ganancia neta del mes</span>
+            <span className="text-sm font-black text-emerald-600">{fmt(stats.month_profit)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Resumen acumulado */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <h3 className="font-bold text-gray-700 mb-4 text-sm flex items-center gap-2">
+          <ArrowLeftRight className="h-4 w-4 text-green-500" /> Resumen Acumulado
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-gray-50 rounded-xl">
+            <div className="text-xs text-gray-500 mb-1">Total Operaciones</div>
+            <div className="text-2xl font-black text-gray-900">{num(stats.total_transactions)}</div>
+          </div>
+          <div className="text-center p-4 bg-emerald-50 rounded-xl">
+            <div className="text-xs text-emerald-600 mb-1">Ganancia Acumulada</div>
+            <div className="text-2xl font-black text-emerald-700">{fmt(stats.total_profit)}</div>
+          </div>
+          <div className="text-center p-4 bg-blue-50 rounded-xl">
+            <div className="text-xs text-blue-600 mb-1">Tasa Compra</div>
+            <div className="text-2xl font-black text-blue-700">{fmtRate(stats.current_buy_rate)}</div>
+          </div>
+          <div className="text-center p-4 bg-red-50 rounded-xl">
+            <div className="text-xs text-red-600 mb-1">Tasa Venta</div>
+            <div className="text-2xl font-black text-red-700">{fmtRate(stats.current_sell_rate)}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Últimas operaciones */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h3 className="font-bold text-gray-700 text-sm flex items-center gap-2">
+            <DollarSign className="h-4 w-4 text-green-500" /> Últimas Operaciones de Cambio
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
+              <tr>
+                <th className="px-4 py-3">Recibo</th>
+                <th className="px-4 py-3">Fecha</th>
+                <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Cliente</th>
+                <th className="px-4 py-3 text-right">USD</th>
+                <th className="px-4 py-3 text-right">Tasa</th>
+                <th className="px-4 py-3 text-right">DOP</th>
+                <th className="px-4 py-3 text-right">Ganancia</th>
+                <th className="px-4 py-3">Estado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {txns.length === 0 ? (
+                <tr><td colSpan={9} className="px-4 py-12 text-center text-gray-400">No hay operaciones registradas</td></tr>
+              ) : txns.map(t => (
+                <tr key={t.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-mono text-xs font-medium">{t.receipt_number}</td>
+                  <td className="px-4 py-3 text-xs text-gray-500">{fmtDt(t.created_at)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${t.operation === 'BUY' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                      {t.operation === 'BUY' ? <TrendingDown className="h-3 w-3" /> : <TrendingUp className="h-3 w-3" />}
+                      {t.operation_display}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 max-w-[140px] truncate">{t.customer_display}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{fmtUSD(t.usd_amount)}</td>
+                  <td className="px-4 py-3 text-right text-xs text-gray-500">{fmtRate(t.rate_applied)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">{fmt(t.dop_amount)}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-emerald-600">{fmt(t.profit)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      t.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                      t.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>{t.status_display}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Página principal ─────────────────────────────────────────────────────────
 const TABS = [
   { id: 'portafolio', label: 'Portafolio', icon: CreditCard },
   { id: 'ingresos',  label: 'Ingresos',   icon: Coins },
+  { id: 'cambio',    label: 'Cambio USD',  icon: ArrowLeftRight },
 ]
 
 export default function ReportsPage() {
-  const [tab, setTab]             = useState<'portafolio' | 'ingresos'>('portafolio')
+  const [tab, setTab]             = useState<'portafolio' | 'ingresos' | 'cambio'>('portafolio')
   const [dash, setDash]           = useState<DashData | null>(null)
   const [loanStats, setLoanStats] = useState<LoanStats | null>(null)
   const [payStats, setPayStats]   = useState<PayStats | null>(null)
@@ -260,6 +468,9 @@ export default function ReportsPage() {
       <div className="flex-1 overflow-y-auto p-6">
         {/* ── Tab Ingresos ────────────────────────────────────────────────── */}
         {tab === 'ingresos' && <EarningsTab />}
+
+        {/* ── Tab Cambio USD ─────────────────────────────────────────────── */}
+        {tab === 'cambio' && <ExchangeTab />}
 
         {/* ── Tab Portafolio ──────────────────────────────────────────────── */}
         {tab === 'portafolio' && (

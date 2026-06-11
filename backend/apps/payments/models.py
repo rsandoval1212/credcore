@@ -72,8 +72,8 @@ class Payment(BaseModel):
     def save(self, *args, **kwargs):
         if not self.payment_number:
             from apps.core.utils import generate_code
-            self.payment_number = generate_code('PAG', 8)
+            self.payment_number = generate_code('PAG', 8, model_class=Payment, field_name='payment_number')
         if not self.receipt_number:
             from apps.core.utils import generate_code
-            self.receipt_number = generate_code('REC', 8)
+            self.receipt_number = generate_code('REC', 8, model_class=Payment, field_name='receipt_number')
         super().save(*args, **kwargs)

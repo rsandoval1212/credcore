@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Vault, RefreshCw, Plus, CheckCircle, Clock, TrendingUp, TrendingDown, X, Save } from 'lucide-react'
+import { Vault, RefreshCw, Plus, CheckCircle, Clock, TrendingUp, TrendingDown, X, Save, PlusCircle } from 'lucide-react'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -8,6 +8,7 @@ interface Session {
   opening_amount: number; closing_amount: number; total_income: number; total_expense: number
   opened_at: string; closed_at: string; payments_total: number
 }
+interface Register { id: number; name: string; branch_name?: string; is_active?: boolean }
 interface Stats { open_sessions: number; today_sessions: number; today_income: number; today_expense: number; month_income: number; month_expense: number }
 
 const fmt = (n?: number | null) => n == null ? 'RD$0' : new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 0 }).format(n)
@@ -17,9 +18,11 @@ export default function CashPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [registers, setRegisters] = useState<{ id: number; name: string }[]>([])
+  const [registers, setRegisters] = useState<Register[]>([])
   const [showOpen, setShowOpen] = useState(false)
   const [showClose, setShowClose] = useState<Session | null>(null)
+  const [showNewRegister, setShowNewRegister] = useState(false)
+  const [newRegisterName, setNewRegisterName] = useState('')
   const [openForm, setOpenForm] = useState({ cash_register: '', opening_amount: '0' })
   const [closeForm, setCloseForm] = useState({ closing_amount: '', notes: '' })
   const [saving, setSaving] = useState(false)
@@ -34,11 +37,49 @@ export default function CashPage() {
       ])
       setSessions(s.data.results || s.data)
       setStats(st.data)
-      setRegisters(r.data.results || r.data)
+      const regs = r.data.results || r.data
+      setRegisters(regs)
     } catch {} finally { setLoading(false) }
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const handleCreateRegister = async () => {
+    if (!newRegisterName.trim()) { toast.error('Ingresa un nombre para la caja'); return }
+    setSaving(true)
+    try {
+      // Get first branch or create one
+      let branchId: number
+      try {
+        const branchRes = await api.get('/branches/')
+        const branches = branchRes.data.results || branchRes.data
+        if (branches.length > 0) {
+          branchId = branches[0].id
+        } else {
+          // Create default branch
+          const newBranch = await api.post('/branches/', { name: 'Sucursal Principal', code: 'MAIN', address: 'Dirección Principal', phone: '000-000-0000' })
+          branchId = newBranch.data.id
+        }
+      } catch {
+        toast.error('Error obteniendo sucursales. Crea una sucursal primero.')
+        setSaving(false)
+        return
+      }
+
+      const res = await api.post('/cash/registers/', { name: newRegisterName.trim(), branch: branchId, currency: 'DOP', is_active: true })
+      toast.success(`Caja "${res.data.name}" creada`)
+      setNewRegisterName('')
+      setShowNewRegister(false)
+      // Reload registers and auto-select the new one
+      const r = await api.get('/cash/registers/')
+      const regs = r.data.results || r.data
+      setRegisters(regs)
+      setOpenForm(f => ({ ...f, cash_register: String(res.data.id) }))
+    } catch (err: any) {
+      const detail = err?.response?.data?.name?.[0] || err?.response?.data?.detail || 'Error creando caja'
+      toast.error(detail)
+    } finally { setSaving(false) }
+  }
 
   const handleOpen = async () => {
     if (!openForm.cash_register) { toast.error('Selecciona una caja'); return }
@@ -82,11 +123,31 @@ export default function CashPage() {
             <div className="flex items-center justify-between"><h3 className="font-bold text-lg">Abrir Sesión de Caja</h3><button onClick={() => setShowOpen(false)}><X className="h-5 w-5 text-gray-400" /></button></div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Caja *</label>
-              <select value={openForm.cash_register} onChange={e => setOpenForm(f => ({ ...f, cash_register: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                <option value="">Seleccionar...</option>
-                {registers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <div className="flex gap-2">
+                <select value={openForm.cash_register} onChange={e => setOpenForm(f => ({ ...f, cash_register: e.target.value }))} className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                  <option value="">Seleccionar...</option>
+                  {registers.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <button type="button" onClick={() => setShowNewRegister(true)} className="px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg hover:bg-emerald-100 text-sm font-medium flex items-center gap-1" title="Crear nueva caja">
+                  <PlusCircle className="h-4 w-4" /> Nueva
+                </button>
+              </div>
+              {registers.length === 0 && !showNewRegister && (
+                <p className="text-xs text-amber-600 mt-1">No hay cajas registradas. Crea una nueva para continuar.</p>
+              )}
             </div>
+            {showNewRegister && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-2">
+                <label className="block text-xs font-semibold text-emerald-700">Nombre de la nueva caja</label>
+                <div className="flex gap-2">
+                  <input type="text" value={newRegisterName} onChange={e => setNewRegisterName(e.target.value)} placeholder="Ej: Caja Principal, Caja 1..." className="flex-1 px-3 py-2 border border-emerald-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" autoFocus onKeyDown={e => e.key === 'Enter' && handleCreateRegister()} />
+                  <button onClick={handleCreateRegister} disabled={saving} className="px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium disabled:opacity-60">Crear</button>
+                  <button onClick={() => { setShowNewRegister(false); setNewRegisterName('') }} className="px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Monto de apertura (RD$)</label>
               <input type="number" min="0" value={openForm.opening_amount} onChange={e => setOpenForm(f => ({ ...f, opening_amount: e.target.value }))} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />

@@ -101,7 +101,7 @@ class Loan(BaseModel):
         if not self.loan_number:
             from apps.core.utils import generate_code
             prefix = self.product.loan_number_prefix or 'PRES'
-            self.loan_number = generate_code(prefix, 8)
+            self.loan_number = generate_code(prefix, 8, model_class=type(self), field_name='loan_number')
         super().save(*args, **kwargs)
 
     def generate_schedule(self):

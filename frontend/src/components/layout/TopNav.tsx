@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, DollarSign,
   Archive, Shield, BarChart3, Settings,
-  ClipboardList, Wallet, Calculator, AlertTriangle,
+  ClipboardList, Wallet, Calculator, AlertTriangle, ArrowLeftRight,
   Bell, LogOut, ChevronDown, Menu, X, Clock,
 } from 'lucide-react'
 
@@ -41,19 +41,20 @@ import NotificationsPanel from '@/components/notifications/NotificationsPanel'
 import defaultLogo from '@/assets/logo.png'
 
 const navItems = [
-  { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard'    },
+  { to: '/dashboard',    icon: LayoutDashboard, label: 'Inicio'       },
   { to: '/customers',    icon: Users,           label: 'Clientes'     },
   { to: '/applications', icon: ClipboardList,   label: 'Solicitudes'  },
   { to: '/loans',        icon: CreditCard,      label: 'Préstamos'    },
   { to: '/payments',     icon: DollarSign,      label: 'Cobros'       },
   { to: '/collections',  icon: AlertTriangle,   label: 'Cobranza'     },
   { to: '/cash',         icon: Wallet,          label: 'Caja'         },
+  { to: '/exchange',     icon: ArrowLeftRight,  label: 'Cambio'       },
   { to: '/guarantees',   icon: Archive,         label: 'Garantías'    },
   { to: '/reports',      icon: BarChart3,       label: 'Reportes'     },
   { to: '/calculator',   icon: Calculator,      label: 'Calculadora'  },
-  { to: '/investors',    icon: DollarSign,      label: 'Inversionistas'},
+  { to: '/investors',    icon: DollarSign,      label: 'Inversiones'  },
   { to: '/users',        icon: Shield,          label: 'Usuarios'     },
-  { to: '/config',       icon: Settings,        label: 'Configuración'},
+  { to: '/config',       icon: Settings,        label: 'Config'       },
 ]
 
 export default function TopNav() {
@@ -104,34 +105,34 @@ export default function TopNav() {
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     clsx(
-      'flex flex-col items-center gap-1 px-3 py-2 rounded-xl text-xs font-medium transition-all whitespace-nowrap min-w-[58px]',
+      'flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg text-[10px] font-medium transition-all whitespace-nowrap min-w-0',
       isActive
-        ? 'bg-primary-600 text-white shadow-md scale-[1.02]'
-        : 'text-gray-400 hover:bg-gray-700 hover:text-white hover:scale-[1.02]'
+        ? 'bg-primary-600 text-white shadow-md'
+        : 'text-gray-400 hover:bg-gray-700 hover:text-white'
     )
 
   return (
     <>
       {/* ── Barra principal oscura ─────────────────────────────────────────── */}
       <header className="bg-gray-900 shrink-0 z-30 shadow-lg">
-        <div className="flex items-center h-16 px-4 gap-3">
+        <div className="flex items-center h-14 px-3 gap-2">
 
           {/* ── Logo ───────────────────────────────────────────────────── */}
-          <div className="flex items-center gap-2.5 shrink-0 pr-3 border-r border-gray-700">
-            <div className="h-8 w-8 bg-white rounded-lg flex items-center justify-center p-0.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 pr-2 border-r border-gray-700">
+            <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center p-0.5 shrink-0">
               <img src={logoUrl} alt={companyName} className="h-full w-full object-contain" />
             </div>
-            <span className="font-bold text-white text-sm hidden md:block truncate max-w-[130px]">
+            <span className="font-bold text-white text-xs hidden xl:block truncate max-w-[90px]">
               {companyName}
             </span>
           </div>
 
           {/* ── Navegación horizontal (desktop) ──────────────────────── */}
-          <nav className="hidden lg:flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide px-1">
+          <nav className="hidden lg:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide px-0.5">
             {navItems.map(({ to, icon: Icon, label }) => (
               <NavLink key={to} to={to} className={navLinkClass}>
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="leading-none">{label}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="leading-none truncate max-w-[72px]">{label}</span>
               </NavLink>
             ))}
 
@@ -172,7 +173,7 @@ export default function TopNav() {
                   </span>
                 </div>
                 <div className="hidden sm:block text-left">
-                  <p className="text-xs font-semibold text-white leading-tight truncate max-w-[100px]">
+                  <p className="text-xs font-semibold text-white leading-tight truncate max-w-[180px]">
                     {user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : user?.email}
                   </p>
                   <p className="text-[10px] text-gray-400 leading-tight">

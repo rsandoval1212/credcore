@@ -4,14 +4,13 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
-import time
 
 API = 'api/v1/'
 
 
 def health_check(request):
     """Endpoint público para verificar que el servidor está activo (usado por el frontend como ping)."""
-    return JsonResponse({'status': 'ok', 'timestamp': time.time()})
+    return JsonResponse({'status': 'ok'})
 
 
 urlpatterns = [
@@ -19,11 +18,6 @@ urlpatterns = [
 
     # Health check (sin autenticación — usado por el frontend para detectar conexión)
     path(f'{API}health/', health_check, name='health-check'),
-
-    # Docs
-    path(f'{API}schema/', SpectacularAPIView.as_view(), name='schema'),
-    path(f'{API}docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
-    path(f'{API}redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
 
     # Auth & Users
     path(f'{API}auth/', include('apps.users.urls')),
@@ -39,10 +33,12 @@ urlpatterns = [
     path(f'{API}guarantees/', include('apps.guarantees.urls')),
     path(f'{API}collections/', include('apps.collections.urls')),
     path(f'{API}accounting/', include('apps.accounting.urls')),
-    path(f'{API}collections/', include('apps.collections.urls')),
-    path(f'{API}accounting/', include('apps.accounting.urls')),
+    path(f'{API}currency-exchange/', include('apps.currency_exchange.urls')),
     path(f'{API}reports/', include('apps.core.report_urls')),
     path(f'{API}dashboard/', include('apps.core.dashboard_urls')),
+
+    # FIX #21: Notificaciones en tiempo real (SSE)
+    path(f'{API}notifications/', include('apps.core.notification_urls')),
 
     # Módulos opcionales — se activan cuando su app esté en INSTALLED_APPS
     # path(f'{API}risk/', include('apps.risk.urls')),
@@ -55,6 +51,12 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
+    # API docs solo visibles en desarrollo
+    urlpatterns += [
+        path(f'{API}schema/', SpectacularAPIView.as_view(), name='schema'),
+        path(f'{API}docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+        path(f'{API}redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+    ]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     try:

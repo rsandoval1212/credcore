@@ -17,9 +17,18 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Registrar Service Worker para PWA
+      // Limpiar SW viejo y re-registrar con nueva versión
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
+          // Limpiar todos los caches viejos
+          if (window.caches) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map(k => caches.delete(k)));
+          }
+          // Desregistrar SW viejo y registrar nuevo
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+          // Re-registrar
           navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
       }

@@ -5,6 +5,7 @@ import pyotp
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from apps.users.managers import UserManager
+from apps.core.validators import validate_image_extension, validate_image_size
 
 
 class Role(models.Model):
@@ -43,6 +44,8 @@ class Permission(models.Model):
         ('branches', 'Sucursales'),
         ('config', 'Configuración'),
         ('audit', 'Auditoría'),
+        ('currency_exchange', 'Cambio de Divisas'),
+        ('investors', 'Inversionistas'),
     ]
     ACTION_CHOICES = [
         ('view', 'Ver'),
@@ -87,7 +90,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     phone = models.CharField(max_length=20, blank=True)
-    avatar = models.ImageField(upload_to='users/avatars/', null=True, blank=True)
+    avatar = models.ImageField(
+        upload_to='users/avatars/', null=True, blank=True,
+        validators=[validate_image_extension, validate_image_size]
+    )
 
     branch = models.ForeignKey(
         'branches.Branch', null=True, blank=True,

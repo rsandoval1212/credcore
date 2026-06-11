@@ -52,8 +52,12 @@ class LoginSerializer(serializers.Serializer):
     totp_code = serializers.CharField(required=False, max_length=6)
 
     def validate(self, data):
+        import logging
+        audit_logger = logging.getLogger('credcore.audit')
         user = authenticate(username=data['email'], password=data['password'])
         if not user:
+            # FIX B3: Registrar intentos fallidos de login
+            audit_logger.warning(f"[LOGIN_FAILED] email={data['email']} ip={self._get_ip()}")
             raise serializers.ValidationError('Credenciales incorrectas.')
         if not user.is_active:
             raise serializers.ValidationError('Cuenta inactiva.')
@@ -66,4 +70,15 @@ class LoginSerializer(serializers.Serializer):
             if not user.verify_totp(totp_code):
                 raise serializers.ValidationError({'totp_code': 'Código 2FA inválido.'})
         data['user'] = user
+        audit_logger.info(f"[LOGIN_OK] email={user.email} ip={self._get_ip()}")
         return data
+
+    def _get_ip(self):
+        """Obtiene IP del request context."""
+        request = self.context.get('request')
+        if request:
+            xff = request.META.get('HTTP_X_FORWARDED_FOR')
+            if xff:
+                return xff.split(',')[0].strip()
+            return request.META.get('REMOTE_ADDR', 'unknown')
+        return 'unknown'

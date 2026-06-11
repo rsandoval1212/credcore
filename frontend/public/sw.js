@@ -1,51 +1,52 @@
-/* CredCore Service Worker - app shell caching */
-const CACHE_NAME = 'credcore-v1'
-const APP_SHELL = ['/', '/index.html', '/logo.png']
+/**
+ * CredCore Service Worker - Cache basico para modo offline.
+ * Estrategia: Network First con fallback a cache.
+ */
+var CACHE_NAME = 'credcore-v1';
 
-self.addEventListener('install', (e) => {
-  self.skipWaiting()
-  e.waitUntil(caches.open(CACHE_NAME).then(c => c.addAll(APP_SHELL).catch(() => {})))
-})
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  )
-})
-
-self.addEventListener('fetch', (event) => {
-  const req = event.request
-  if (req.method !== 'GET') return  // no cachear escrituras
-
-  const url = new URL(req.url)
-
-  // No interceptar API ni media (los maneja Axios)
-  if (url.pathname.startsWith('/api/')) return
-  if (url.pathname.startsWith('/media/')) return
-
-  // Estrategia: cache-first para assets, network-first para HTML
-  const isHTML = req.mode === 'navigate' || req.destination === 'document'
-
-  if (isHTML) {
-    event.respondWith(
-      fetch(req).catch(() => caches.match('/index.html') || caches.match('/'))
-    )
-    return
-  }
-
-  // Cache-first para JS/CSS/imágenes
-  event.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached
-      return fetch(req).then(res => {
-        if (res.ok && (res.type === 'basic' || res.type === 'cors')) {
-          const clone = res.clone()
-          caches.open(CACHE_NAME).then(c => c.put(req, clone)).catch(() => {})
-        }
-        return res
-      }).catch(() => cached || new Response('Offline', { status: 503 }))
+self.addEventListener('install', function(event) {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(function(cache) {
+      return cache.addAll(['/', '/index.html']);
     })
-  )
-})
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  event.waitUntil(
+    caches.keys().then(function(keys) {
+      return Promise.all(keys.filter(function(k) { return k !== CACHE_NAME; }).map(function(k) { return caches.delete(k); }));
+    })
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', function(event) {
+  if (event.request.method !== 'GET') return;
+  var url = new URL(event.request.url);
+  if (url.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request).then(function(response) {
+        if (response.ok) {
+          var clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(event.request, clone); });
+        }
+        return response;
+      }).catch(function() { return caches.match(event.request); })
+    );
+    return;
+  }
+  event.respondWith(
+    caches.match(event.request).then(function(cached) {
+      if (cached) return cached;
+      return fetch(event.request).then(function(response) {
+        if (response.ok && url.origin === self.location.origin) {
+          var clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(event.request, clone); });
+        }
+        return response;
+      });
+    })
+  );
+});

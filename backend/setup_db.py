@@ -19,8 +19,8 @@ call_command('migrate', '--run-syncdb', verbosity=1)
 
 print("\nCreando admin...")
 from apps.users.models import User
-email = 'admin@credcore.com'
-password = 'Admin123!'
+email = os.environ.get('CREDCORE_ADMIN_EMAIL', 'admin@credcore.com')
+password = os.environ.get('CREDCORE_ADMIN_PASSWORD', 'Admin123!')
 
 if User.objects.filter(email=email).exists():
     u = User.objects.get(email=email)
@@ -38,4 +38,4 @@ else:
     print("Admin creado:", email)
 
 print("Usuarios en DB:", User.objects.count())
-print("\nListo! Credenciales: admin@credcore.com / Admin123!")
+print("\nListo! Use variables CREDCORE_ADMIN_EMAIL y CREDCORE_ADMIN_PASSWORD para configurar.")

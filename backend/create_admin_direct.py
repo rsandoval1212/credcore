@@ -71,10 +71,9 @@ cursor.execute('SELECT id FROM users_user WHERE email = ?', ('admin@credcore.loc
 user = cursor.fetchone()
 
 if not user:
-    # Django usa PBKDF2 para las contraseñas
-    # Para fines de desarrollo, usaremos una contraseña simple hasheada
-    password = 'AdminCredCore123!'
-    # Hash simple para desarrollo
+    import os
+    # FIX C1: Credenciales via variable de entorno
+    password = os.environ.get('CREDCORE_ADMIN_PASSWORD', 'AdminCredCore123!')
     hashed_password = hashlib.pbkdf2_hmac('sha256', password.encode(), b'salt', 100000).hex()
     
     cursor.execute('''
@@ -104,7 +103,7 @@ if not user:
     print(f"✅ Usuario administrador creado:")
     print(f"   Email:      admin@credcore.local")
     print(f"   Usuario:    admin")
-    print(f"   Contraseña: AdminCredCore123!")
+    print(f"   Contraseña: (variable CREDCORE_ADMIN_PASSWORD)")
 else:
     print("⚠️ El usuario administrador ya existe")
     print(f"   Email:  admin@credcore.local")

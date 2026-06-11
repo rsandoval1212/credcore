@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import CashRegister, CashSession, CashTransaction
 from .serializers import (
     CashRegisterSerializer, CashSessionSerializer,
@@ -16,13 +17,13 @@ from .serializers import (
 
 class CashRegisterViewSet(viewsets.ModelViewSet):
     queryset = CashRegister.objects.filter(is_active=True).select_related('branch')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('cash')]
     serializer_class = CashRegisterSerializer
 
 
 class CashSessionViewSet(viewsets.ModelViewSet):
     queryset = CashSession.objects.select_related('cash_register', 'cashier', 'closed_by').prefetch_related('transactions', 'payments')
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('cash')]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['status', 'cashier', 'cash_register']
     ordering_fields = ['opened_at', 'closed_at']
@@ -93,6 +94,43 @@ class CashSessionViewSet(viewsets.ModelViewSet):
             serializer.save(session=session, created_by=request.user)
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
+
+    @action(detail=True, methods=['get'])
+    def closing_report(self, request, pk=None):
+        """FIX #22: Reporte detallado de cierre de caja."""
+        session = self.get_object()
+        txns = session.transactions.all().order_by('created_at')
+        payments = session.payments.select_related('loan', 'customer').all()
+
+        by_method = {}
+        for p in payments:
+            method = p.get_payment_method_display()
+            by_method.setdefault(method, {'count': 0, 'total': 0})
+            by_method[method]['count'] += 1
+            by_method[method]['total'] += float(p.total_amount)
+
+        return Response({
+            'session_id': str(session.pk),
+            'register': session.cash_register.name if session.cash_register else '',
+            'cashier': session.cashier.get_full_name() if session.cashier else '',
+            'opened_at': session.opened_at,
+            'closed_at': session.closed_at,
+            'opening_amount': float(session.opening_amount),
+            'closing_amount': float(session.closing_amount or 0),
+            'total_income': float(session.total_income or 0),
+            'total_expense': float(session.total_expense or 0),
+            'expected_closing': float(session.expected_closing or 0),
+            'difference': float(session.difference or 0),
+            'payments_count': payments.count(),
+            'payments_total': float(payments.aggregate(t=Sum('total_amount'))['t'] or 0),
+            'by_payment_method': by_method,
+            'transactions': [
+                {'type': t.transaction_type, 'amount': float(t.amount),
+                 'description': t.description, 'created_at': t.created_at}
+                for t in txns
+            ],
+            'notes': session.closing_notes or '',
+        })
 
     @action(detail=False, methods=['get'])
     def stats(self, request):

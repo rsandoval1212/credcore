@@ -427,13 +427,13 @@ export default function LoanCalculatorPage() {
     if (!content) return
     const w = window.open('', '_blank', 'width=900,height=700')
     if (!w) return
-    w.document.write(`
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8"/>
-        <title>Tabla de Amortización — CredCore</title>
-        <style>
+    // FIX M3: Usar cloneNode en vez de innerHTML+document.write para prevenir XSS
+    const cloned = content.cloneNode(true) as HTMLElement
+    const printDoc = w.document
+    printDoc.open()
+    printDoc.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>')
+    printDoc.write('<title>Tabla de Amortización — CredCore</title>')
+    printDoc.write(`<style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: Arial, sans-serif; font-size: 11px; color: #1a1a1a; padding: 24px; }
           h1 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
@@ -458,15 +458,14 @@ export default function LoanCalculatorPage() {
           tfoot tr td { background: #eef2f7; font-weight: 800; border-top: 2px solid #1e3a5f; }
           .footer { margin-top: 20px; font-size: 9px; color: #aaa; text-align: center; }
           @media print { body { padding: 12px; } }
-        </style>
-      </head>
-      <body>
-        ${content.innerHTML}
-        <div class="footer">Generado por CredCore · ${new Date().toLocaleDateString('es-DO', { day:'2-digit', month:'long', year:'numeric' })}</div>
-      </body>
-      </html>
-    `)
-    w.document.close()
+        </style>`)
+    printDoc.write('</head><body></body></html>')
+    printDoc.close()
+    printDoc.body.appendChild(cloned)
+    const footer = printDoc.createElement('div')
+    footer.className = 'footer'
+    footer.textContent = `Generado por CredCore · ${new Date().toLocaleDateString('es-DO', { day:'2-digit', month:'long', year:'numeric' })}`
+    printDoc.body.appendChild(footer)
     w.focus()
     setTimeout(() => { w.print(); w.close() }, 400)
   }

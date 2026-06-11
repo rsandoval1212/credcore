@@ -16,8 +16,12 @@ export default function PWAInstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
-    // Ya está instalada como app
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Ya está instalada como app o corriendo en pywebview (desktop)
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window as any).pywebview ||
+      navigator.userAgent.includes('pywebview')
+    ) {
       setIsStandalone(true)
       return
     }

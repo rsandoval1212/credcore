@@ -43,6 +43,21 @@ CSRF_COOKIE_SECURE = False
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
-    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'formatters': {
+        'audit': {'format': '%(asctime)s %(message)s', 'datefmt': '%Y-%m-%d %H:%M:%S'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+        'audit_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': str(BASE_DIR / 'audit.log'),
+            'maxBytes': 10 * 1024 * 1024,  # 10MB
+            'backupCount': 5,
+            'formatter': 'audit',
+        },
+    },
+    'loggers': {
+        'credcore.audit': {'handlers': ['audit_file', 'console'], 'level': 'INFO'},
+    },
     'root': {'handlers': ['console'], 'level': 'INFO'},
 }

@@ -7,7 +7,12 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-change-this-in-production')
+# FIX #5: SECRET_KEY segura — DEBE configurarse en producción via variable de entorno
+_default_key = 'django-insecure-change-this-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', _default_key)
+if SECRET_KEY == _default_key and not os.environ.get('DJANGO_SETTINGS_MODULE', '').endswith('development'):
+    import warnings
+    warnings.warn('⚠️  SECRET_KEY no configurada. Configura la variable de entorno SECRET_KEY en producción.', stacklevel=1)
 
 DEBUG = False
 
@@ -51,6 +56,7 @@ LOCAL_APPS = [
     'apps.guarantees',
     'apps.collections',
     'apps.accounting',
+    'apps.currency_exchange',
     # 'apps.audit',  # Comentado temporalmente
     # 'apps.risk',  # Comentado temporalmente
     # 'apps.notifications',  # Comentado temporalmente
@@ -73,7 +79,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'apps.audit.middleware.AuditMiddleware',  # Comentado temporalmente
+    'apps.core.audit_middleware.AuditLogMiddleware',  # FIX #8: Audit log
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -139,10 +145,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# FIX A1: Limitar tamaño de uploads para prevenir DoS
+DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024      # 25 MB max request body
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024       # 10 MB antes de escribir a disco
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 1000                  # Prevenir ataques por campos excesivos
+
 # ─── REST Framework ───────────────────────────────────────────────────────────
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'apps.core.cookie_auth.CookieJWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
@@ -156,12 +167,25 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 25,
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'EXCEPTION_HANDLER': 'apps.core.exceptions.custom_exception_handler',
+
+    # FIX #3: Rate limiting para prevenir fuerza bruta
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '20/minute',       # Login, registro (no autenticados)
+        'user': '120/minute',      # Usuarios autenticados
+        'login': '5/minute',       # Intentos de login
+        'verify_admin': '5/minute', # Verificación de admin
+    },
 }
 
 # ─── JWT ─────────────────────────────────────────────────────────────────────
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # FIX A6: Lifetimes cortos para app financiera
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=8),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
     'UPDATE_LAST_LOGIN': True,
@@ -170,15 +194,26 @@ SIMPLE_JWT = {
 }
 
 # ─── CORS ─────────────────────────────────────────────────────────────────────
+_default_cors = 'http://localhost:3000,http://127.0.0.1:3000'
 CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-    'http://localhost:8000',
-    'http://127.0.0.1:8000',
+    origin.strip()
+    for origin in os.environ.get('CORS_ALLOWED_ORIGINS', _default_cors).split(',')
+    if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']
-CORS_ALLOW_HEADERS = ['*']
+# FIX C5: Headers CORS restringidos (no wildcard)
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 
 # ─── Redis & Celery ───────────────────────────────────────────────────────────
 REDIS_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')

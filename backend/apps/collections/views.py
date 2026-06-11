@@ -6,6 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from apps.core.permissions import module_permissions
 from .models import CollectionAction, PaymentAgreement
 from .serializers import CollectionActionSerializer, PaymentAgreementSerializer
 
@@ -16,9 +17,15 @@ class CollectionActionViewSet(viewsets.ModelViewSet):
         'loan', 'customer', 'performed_by'
     ).order_by('-created_at')
     serializer_class   = CollectionActionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('collections')]
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields   = ['action_type', 'result', 'loan', 'customer']
+    filterset_fields = {
+        'action_type': ['exact'],
+        'result': ['exact'],
+        'loan': ['exact'],
+        'customer': ['exact'],
+        'created_at': ['gte', 'lte', 'date__gte', 'date__lte'],
+    }
     search_fields      = ['loan__loan_number', 'customer__first_name', 'customer__last_name', 'notes']
     ordering_fields    = ['created_at', 'days_past_due_at_action', 'amount_owed_at_action']
 
@@ -84,7 +91,7 @@ class PaymentAgreementViewSet(viewsets.ModelViewSet):
         'loan', 'collection_action', 'created_by'
     ).order_by('-created_at')
     serializer_class   = PaymentAgreementSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, module_permissions('collections')]
     filter_backends    = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields   = ['status', 'loan']
     search_fields      = ['loan__loan_number', 'notes']

@@ -4,6 +4,7 @@ import {
   MessageCircle, Search, ChevronLeft, ChevronRight,
   Plus, CheckCircle, XCircle,
 } from 'lucide-react'
+import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -233,6 +234,7 @@ export default function CollectionsPage() {
   const [page, setPage]               = useState(1)
   const [totalPages, setTotalPages]   = useState(1)
   const [totalCount, setTotalCount]   = useState(0)
+  const [dateRange, setDateRange] = useState<DateRange | null>(null)
   const [actionModal, setActionModal] = useState<{ loanId: string; customerId: number } | null>(null)
   const [agreementModal, setAgreementModal] = useState<string | null>(null)
 
@@ -250,12 +252,16 @@ export default function CollectionsPage() {
     try {
       const params: Record<string, unknown> = { page }
       if (search) params.search = search
+      if (dateRange) {
+        params.created_at__date__gte = dateRange.from
+        params.created_at__date__lte = dateRange.to
+      }
       const r = await api.get('/collections/actions/', { params })
       setActions(r.data.results || r.data)
       setTotalPages(r.data.total_pages || 1)
       setTotalCount(r.data.count || 0)
     } catch { toast.error('Error cargando acciones') } finally { setLoading(false) }
-  }, [page, search])
+  }, [page, search, dateRange])
 
   const loadAgreements = useCallback(async () => {
     setLoading(true)
@@ -414,13 +420,16 @@ export default function CollectionsPage() {
         {/* ── Tab: Acciones de Cobro ────────────────────────────────────── */}
         {tab === 'acciones' && (
           <div className="space-y-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-3 flex gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input placeholder="Buscar préstamo, cliente..." value={search}
-                  onChange={e => { setSearch(e.target.value); setPage(1) }}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+            <div className="bg-white rounded-xl border border-gray-200 p-3 space-y-3">
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input placeholder="Buscar préstamo, cliente..." value={search}
+                    onChange={e => { setSearch(e.target.value); setPage(1) }}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+                </div>
               </div>
+              <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} />
             </div>
             {loading ? (
               <div className="flex justify-center py-20"><RefreshCw className="h-6 w-6 text-primary-500 animate-spin" /></div>

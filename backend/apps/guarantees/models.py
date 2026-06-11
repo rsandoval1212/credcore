@@ -1,6 +1,7 @@
 """Garantías prendarias e hipotecarias."""
 from django.db import models
 from apps.core.models import BaseModel
+from apps.core.validators import validate_file_extension, validate_file_size
 
 
 class Guarantee(BaseModel):
@@ -26,6 +27,7 @@ class Guarantee(BaseModel):
     class Meta:
         verbose_name = 'Garantía'
         verbose_name_plural = 'Garantías'
+        ordering = ['-created_at']
 
     def __str__(self):
         return f'{self.get_guarantee_type_display()} - {self.loan.loan_number}'
@@ -68,7 +70,8 @@ class RealEstateGuarantee(models.Model):
 class GuaranteeDocument(models.Model):
     guarantee = models.ForeignKey(Guarantee, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=100)
-    file = models.FileField(upload_to='guarantees/documents/%Y/%m/')
+    file = models.FileField(upload_to='guarantees/documents/%Y/%m/',
+                            validators=[validate_file_extension, validate_file_size])
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey('users.User', on_delete=models.PROTECT, related_name='+')
     notes = models.TextField(blank=True)
