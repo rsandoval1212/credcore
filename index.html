@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CredCore — Sistema profesional para financieras dominicanas</title>
+<meta name="description" content="Software de gestión de préstamos para financieras en República Dominicana. 100% offline, marca blanca, respaldos automáticos, WhatsApp integrado.">
+<meta property="og:title" content="CredCore — Sistema profesional para financieras">
+<meta property="og:description" content="Software completo de préstamos, cobros, contratos y reportes. Marca blanca, offline, con respaldos automáticos.">
+<meta property="og:image" content="https://rsandoval1212.github.io/credcore/credi.png">
+<meta property="og:type" content="website">
+<link rel="icon" type="image/png" href="credi.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter','Segoe UI',sans-serif;color:#0f1f30;background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased}
+  img{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+  .container{max-width:1180px;margin:0 auto;padding:0 24px}
+
+  /* ── Nav ── */
+  nav{position:sticky;top:0;background:rgba(255,255,255,.92);backdrop-filter:blur(12px);z-index:50;border-bottom:1px solid #eef2f6}
+  .nav-inner{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;max-width:1180px;margin:0 auto}
+  .nav-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:#0a1628}
+  .nav-brand img{height:36px}
+  .nav-links{display:flex;gap:28px;align-items:center}
+  .nav-links a{font-size:14px;font-weight:500;color:#475569;transition:color .15s}
+  .nav-links a:hover{color:#00c853}
+  .nav-cta{background:#00c853;color:#fff;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;transition:all .2s;box-shadow:0 4px 12px rgba(0,200,83,.25)}
+  .nav-cta:hover{background:#00a844;transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,200,83,.35)}
+  @media(max-width:720px){.nav-links{display:none}.nav-cta{display:inline-block}}
+
+  /* ── Hero ── */
+  .hero{background:linear-gradient(160deg,#0a1628 0%,#0d2137 50%,#0a2e1e 100%);color:#fff;padding:90px 0 110px;position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;top:-150px;left:50%;transform:translateX(-50%);width:800px;height:500px;background:radial-gradient(ellipse,rgba(0,200,83,.18) 0%,transparent 70%);pointer-events:none}
+  .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;position:relative;z-index:2}
+  @media(max-width:880px){.hero-grid{grid-template-columns:1fr;gap:40px;text-align:center}}
+  .hero-tag{display:inline-block;font-size:12px;font-weight:600;letter-spacing:3px;color:#00c853;text-transform:uppercase;margin-bottom:24px;padding:6px 16px;border:1px solid rgba(0,200,83,.4);border-radius:99px;background:rgba(0,200,83,.08)}
+  .hero h1{font-size:54px;font-weight:900;line-height:1.05;margin-bottom:20px;letter-spacing:-1px}
+  .hero h1 .grad{background:linear-gradient(90deg,#00c853,#69f0ae);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  @media(max-width:720px){.hero h1{font-size:38px}}
+  .hero-sub{font-size:19px;color:#cbd5e1;font-weight:300;margin-bottom:36px;max-width:540px}
+  @media(max-width:880px){.hero-sub{margin-left:auto;margin-right:auto}}
+  .hero-actions{display:flex;gap:14px;flex-wrap:wrap}
+  @media(max-width:880px){.hero-actions{justify-content:center}}
+  .btn{display:inline-flex;align-items:center;gap:10px;padding:16px 28px;border-radius:10px;font-weight:700;font-size:16px;transition:all .2s;cursor:pointer;border:none}
+  .btn-primary{background:#00c853;color:#fff;box-shadow:0 8px 24px rgba(0,200,83,.4)}
+  .btn-primary:hover{background:#00a844;transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,200,83,.55)}
+  .btn-ghost{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.2)}
+  .btn-ghost:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.35)}
+  .hero-meta{display:flex;gap:24px;margin-top:32px;font-size:13px;color:#94a3b8;flex-wrap:wrap}
+  @media(max-width:880px){.hero-meta{justify-content:center}}
+  .hero-meta-item{display:flex;align-items:center;gap:8px}
+  .hero-meta-item::before{content:'';width:8px;height:8px;border-radius:50%;background:#00c853;box-shadow:0 0 12px #00c853}
+
+  .hero-visual{background:#fff;border-radius:24px;padding:32px;box-shadow:0 30px 80px rgba(0,0,0,.4);position:relative}
+  .hero-visual img{height:180px;margin:0 auto}
+  .hero-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px}
+  .hero-stat{background:#f0fdf4;padding:12px;border-radius:10px;text-align:center;border:1px solid #d1fae5}
+  .hero-stat-num{font-size:24px;font-weight:900;color:#00a844;line-height:1}
+  .hero-stat-lbl{font-size:11px;color:#475569;margin-top:4px;font-weight:500}
+
+  /* ── Sección genérica ── */
+  section{padding:90px 0}
+  .section-tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:3px;color:#00c853;text-transform:uppercase;margin-bottom:14px}
+  .section-title{font-size:42px;font-weight:900;color:#0a1628;line-height:1.15;margin-bottom:18px;letter-spacing:-.5px}
+  @media(max-width:720px){.section-title{font-size:32px}}
+  .section-sub{font-size:18px;color:#475569;max-width:680px;margin-bottom:50px}
+
+  /* ── Features ── */
+  .features{background:#f8fafc}
+  .features-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  @media(max-width:880px){.features-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:560px){.features-grid{grid-template-columns:1fr}}
+  .feat{background:#fff;padding:32px;border-radius:16px;border:1px solid #e2e8f0;transition:all .2s}
+  .feat:hover{transform:translateY(-4px);box-shadow:0 18px 40px rgba(10,22,40,.08);border-color:#00c853}
+  .feat-icon{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,#00c853,#00a844);display:flex;align-items:center;justify-content:center;margin-bottom:18px;font-size:24px}
+  .feat-title{font-size:18px;font-weight:700;color:#0a1628;margin-bottom:8px}
+  .feat-desc{font-size:14px;color:#64748b;line-height:1.6}
+
+  /* ── Diferenciadores ── */
+  .diff-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:720px){.diff-grid{grid-template-columns:1fr}}
+  .diff{display:flex;gap:16px;padding:24px;border-radius:14px;background:#f0fdf4;border-left:4px solid #00c853}
+  .diff-num{font-size:32px;font-weight:900;color:#00c853;line-height:1;min-width:50px}
+  .diff-content h4{font-size:17px;font-weight:700;color:#0a1628;margin-bottom:6px}
+  .diff-content p{font-size:14px;color:#475569}
+
+  /* ── Planes ── */
+  .pricing{background:#0a1628;color:#fff}
+  .pricing .section-title{color:#fff}
+  .pricing .section-sub{color:#cbd5e1}
+  .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:30px}
+  @media(max-width:880px){.plans{grid-template-columns:1fr;max-width:420px;margin-left:auto;margin-right:auto}}
+  .plan{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:32px;position:relative;transition:all .2s}
+  .plan:hover{transform:translateY(-6px);border-color:rgba(0,200,83,.4)}
+  .plan.featured{background:linear-gradient(160deg,#00c853 0%,#00a844 100%);border-color:#00c853;transform:scale(1.03)}
+  .plan.featured:hover{transform:scale(1.05) translateY(-6px)}
+  .plan-tag{position:absolute;top:-12px;right:24px;background:#fff;color:#00a844;font-size:11px;font-weight:800;padding:5px 12px;border-radius:99px;letter-spacing:1px}
+  .plan-name{font-size:14px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:2px;margin-bottom:12px}
+  .plan.featured .plan-name{color:rgba(255,255,255,.85)}
+  .plan-price{font-size:42px;font-weight:900;margin-bottom:6px}
+  .plan-price small{font-size:16px;font-weight:500;color:#94a3b8}
+  .plan.featured .plan-price small{color:rgba(255,255,255,.8)}
+  .plan-desc{font-size:13px;color:#94a3b8;margin-bottom:24px;min-height:36px}
+  .plan.featured .plan-desc{color:rgba(255,255,255,.9)}
+  .plan ul{list-style:none;margin-bottom:28px}
+  .plan li{font-size:14px;padding:8px 0;display:flex;gap:10px;align-items:flex-start;color:#cbd5e1}
+  .plan.featured li{color:#fff}
+  .plan li::before{content:'✓';color:#00c853;font-weight:900;flex-shrink:0}
+  .plan.featured li::before{color:#fff}
+  .plan .btn{width:100%;justify-content:center}
+  .plan-btn{background:rgba(0,200,83,.15);color:#69f0ae;border:1px solid rgba(0,200,83,.4)}
+  .plan-btn:hover{background:rgba(0,200,83,.25)}
+  .plan.featured .plan-btn{background:#fff;color:#00a844;border:none}
+  .plan.featured .plan-btn:hover{background:#f0fdf4}
+
+  /* ── Cómo empezar ── */
+  .steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:30px}
+  @media(max-width:880px){.steps-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:480px){.steps-grid{grid-template-columns:1fr}}
+  .step{text-align:center;padding:24px}
+  .step-num{width:56px;height:56px;border-radius:50%;background:#0a1628;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;margin:0 auto 16px;border:3px solid #00c853}
+  .step h4{font-size:17px;font-weight:700;color:#0a1628;margin-bottom:8px}
+  .step p{font-size:14px;color:#64748b}
+
+  /* ── CTA Final ── */
+  .cta-final{background:linear-gradient(160deg,#00c853 0%,#00a844 100%);color:#fff;text-align:center}
+  .cta-final h2{font-size:42px;font-weight:900;margin-bottom:18px;letter-spacing:-.5px}
+  @media(max-width:720px){.cta-final h2{font-size:32px}}
+  .cta-final p{font-size:19px;margin-bottom:34px;opacity:.95;max-width:580px;margin-left:auto;margin-right:auto}
+  .cta-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .cta-actions .btn-primary{background:#fff;color:#00a844;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .cta-actions .btn-primary:hover{background:#f0fdf4;color:#00a844}
+  .cta-actions .btn-ghost{border-color:rgba(255,255,255,.5);color:#fff}
+  .cta-actions .btn-ghost:hover{background:rgba(255,255,255,.15)}
+
+  /* ── Footer ── */
+  footer{background:#0a1628;color:#94a3b8;padding:50px 0 30px;text-align:center;font-size:13px;border-top:1px solid rgba(255,255,255,.06)}
+  footer .footer-brand{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:20px}
+  footer .footer-brand img{height:32px}
+  footer .footer-brand span{font-weight:800;font-size:18px;color:#fff}
+  footer .social{margin-bottom:20px}
+  footer .social a{display:inline-flex;align-items:center;gap:8px;background:rgba(0,200,83,.12);color:#69f0ae;padding:10px 18px;border-radius:99px;font-weight:600;font-size:13px;transition:all .2s;border:1px solid rgba(0,200,83,.3)}
+  footer .social a:hover{background:rgba(0,200,83,.2)}
+  footer .copy{margin-top:24px;color:#64748b;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- ═══ Nav ═══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-brand">
+      <img src="credi.png" alt="CredCore">
+      <span>CredCore</span>
+    </a>
+    <div class="nav-links">
+      <a href="#caracteristicas">Características</a>
+      <a href="#diferencia">Por qué CredCore</a>
+      <a href="#planes">Planes</a>
+      <a href="#empezar">Cómo empezar</a>
+    </div>
+    <a href="https://github.com/rsandoval1212/credcore/releases/latest" class="nav-cta">Descargar</a>
+  </div>
+</nav>
+
+<!-- ═══ Hero ═══ -->
+<header class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <span class="hero-tag">Hecho en República Dominicana</span>
+        <h1>El sistema profesional para <span class="grad">financieras</span> que sí entiende tu negocio.</h1>
+        <p class="hero-sub">
+          Gestiona préstamos, cobros, clientes y reportes con un sistema completo, offline, con respaldos automáticos y marca propia. <strong style="color:#fff">Listo para vender desde el día 1.</strong>
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/rsandoval1212/credcore/releases/latest" class="btn btn-primary">
+            ⬇ Descargar CredCore v1.0.0
+          </a>
+          <a href="https://wa.me/18494422733?text=Hola%20Ronny%2C%20quiero%20una%20demo%20de%20CredCore" class="btn btn-ghost" target="_blank" rel="noopener">
+            💬 Pedir demo por WhatsApp
+          </a>
+        </div>
+        <div class="hero-meta">
+          <span class="hero-meta-item">Offline</span>
+          <span class="hero-meta-item">Marca blanca</span>
+          <span class="hero-meta-item">Respaldos automáticos</span>
+          <span class="hero-meta-item">WhatsApp integrado</span>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <img src="credi.png" alt="CredCore logo">
+        <div class="hero-card-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-num">21</div>
+            <div class="hero-stat-lbl">Módulos</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-num">100%</div>
+            <div class="hero-stat-lbl">Offline</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-num">RD$</div>
+            <div class="hero-stat-lbl">Moneda local</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ Features ═══ -->
+<section id="caracteristicas" class="features">
+  <div class="container">
+    <div class="section-tag">Características</div>
+    <h2 class="section-title">Todo lo que tu financiera necesita, en un solo programa.</h2>
+    <p class="section-sub">Diseñado para microfinancieras, prestamistas y casas de crédito en República Dominicana. Cubre el flujo completo: del cliente al pago de la última cuota.</p>
+
+    <div class="features-grid">
+      <div class="feat">
+        <div class="feat-icon">📋</div>
+        <h3 class="feat-title">Gestión completa de préstamos</h3>
+        <p class="feat-desc">Solicitudes, aprobación, desembolso automático, tabla de amortización, pagos, mora, refinanciamientos. Cuotas niveladas o decrecientes, simple o compuesto, mensual, quincenal o semanal.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">👥</div>
+        <h3 class="feat-title">Clientes, sucursales y usuarios</h3>
+        <p class="feat-desc">Ficha completa del cliente con score crediticio, historial e ingresos. Roles y permisos por sucursal: cajero, cobrador, gerente, administrador.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">📱</div>
+        <h3 class="feat-title">WhatsApp integrado</h3>
+        <p class="feat-desc">Aviso automático al aprobar un préstamo, recordatorios de pago con un clic, recibos al cliente. Sin pagar APIs caras: usa tu WhatsApp normal.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🎨</div>
+        <h3 class="feat-title">Marca blanca total</h3>
+        <p class="feat-desc">Recibos, contratos, amortizaciones y estados de cuenta con tu logo, tu RNC y tus datos. Tus clientes ven la marca de TU empresa, no la nuestra.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">💾</div>
+        <h3 class="feat-title">Respaldos a USB y Drive</h3>
+        <p class="feat-desc">Cada día crea un respaldo cifrado y lo copia a tu USB y/o a Google Drive. Si la base se daña, se auto-restaura. Nunca pierdes tus datos.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">📊</div>
+        <h3 class="feat-title">Reportes y Excel</h3>
+        <p class="feat-desc">PDFs profesionales con tu marca: tablas de amortización, contratos, estados de cuenta, recibos. Exportación a Excel desde cualquier módulo.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🔐</div>
+        <h3 class="feat-title">Seguridad nivel banco</h3>
+        <p class="feat-desc">Cifrado AES de respaldos, contraseña única por instalación, bitácora de auditoría de todas las operaciones, licencias anti-piratería por hardware.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🔄</div>
+        <h3 class="feat-title">Auto-actualizaciones</h3>
+        <p class="feat-desc">Cuando publicamos una mejora, tu sistema te avisa con un banner. Un clic y descargas. Sin reinstalaciones manuales en cada PC.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">🇩🇴</div>
+        <h3 class="feat-title">Hecho para R.D.</h3>
+        <p class="feat-desc">Moneda en RD$, validación de cédula y RNC, formato de teléfonos 809/829/849, integración con WhatsApp. Pensado para tu mercado, no traducido.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Diferenciadores ═══ -->
+<section id="diferencia">
+  <div class="container">
+    <div class="section-tag">Por qué CredCore</div>
+    <h2 class="section-title">Lo que nadie más te ofrece.</h2>
+    <p class="section-sub">Hay sistemas de préstamo en el mercado. Te explico exactamente lo que CredCore tiene y los demás no.</p>
+
+    <div class="diff-grid">
+      <div class="diff">
+        <div class="diff-num">01</div>
+        <div class="diff-content">
+          <h4>Funciona sin internet</h4>
+          <p>Solo necesita conexión para activarse la primera vez. Después trabajas con o sin internet — ideal para zonas con conectividad inestable.</p>
+        </div>
+      </div>
+      <div class="diff">
+        <div class="diff-num">02</div>
+        <div class="diff-content">
+          <h4>Sin suscripciones a la nube</h4>
+          <p>Tus datos viven en TU computadora, no en servidores ajenos. Pagas una vez la licencia y trabajas todos los años sin mensualidades obligatorias.</p>
+        </div>
+      </div>
+      <div class="diff">
+        <div class="diff-num">03</div>
+        <div class="diff-content">
+          <h4>Soporte directo en español</h4>
+          <p>Soporte por WhatsApp con el mismo desarrollador del sistema. Sin tickets, sin call centers, sin "te llamamos en 48 horas".</p>
+        </div>
+      </div>
+      <div class="diff">
+        <div class="diff-num">04</div>
+        <div class="diff-content">
+          <h4>Doble respaldo automático</h4>
+          <p>USB local + Google Drive opcional, cifrado, organizado por fecha. Si pierdes la PC, en 1 hora estás operando en otra con todos tus datos.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Planes ═══ -->
+<section id="planes" class="pricing">
+  <div class="container">
+    <div class="section-tag">Inversión</div>
+    <h2 class="section-title">Planes claros, sin sorpresas.</h2>
+    <p class="section-sub">Elige el modelo que más te convenga. Sin contratos atrapados ni cobros automáticos sorpresivos.</p>
+
+    <div class="plans">
+      <div class="plan">
+        <div class="plan-name">Pequeño</div>
+        <div class="plan-price">RD$ 25,000<small> · pago único</small></div>
+        <div class="plan-desc">Una sucursal · ideal para iniciar</div>
+        <ul>
+          <li>Licencia perpetua</li>
+          <li>1 PC con software</li>
+          <li>Usuarios ilimitados</li>
+          <li>3 meses de soporte incluido</li>
+          <li>Actualizaciones del año</li>
+        </ul>
+        <a href="https://wa.me/18494422733?text=Hola%2C%20me%20interesa%20el%20plan%20Peque%C3%B1o%20de%20CredCore" class="btn plan-btn" target="_blank" rel="noopener">Lo quiero</a>
+      </div>
+
+      <div class="plan featured">
+        <div class="plan-tag">MÁS POPULAR</div>
+        <div class="plan-name">Suscripción mensual</div>
+        <div class="plan-price">RD$ 3,500<small>/mes</small></div>
+        <div class="plan-desc">Sin pago inicial · todo incluido</div>
+        <ul>
+          <li>Acceso completo al sistema</li>
+          <li>Soporte ilimitado por WhatsApp</li>
+          <li>Todas las actualizaciones</li>
+          <li>Sin compromiso de permanencia</li>
+          <li>Capacitación inicial incluida</li>
+        </ul>
+        <a href="https://wa.me/18494422733?text=Hola%2C%20me%20interesa%20la%20suscripci%C3%B3n%20mensual%20de%20CredCore" class="btn plan-btn" target="_blank" rel="noopener">Empezar ahora</a>
+      </div>
+
+      <div class="plan">
+        <div class="plan-name">Mediano / Grande</div>
+        <div class="plan-price">desde<br>RD$ 35,000<small></small></div>
+        <div class="plan-desc">Multi-sucursal · operaciones grandes</div>
+        <ul>
+          <li>Licencia perpetua multi-PC</li>
+          <li>2 a 4+ sucursales</li>
+          <li>6 meses de soporte incluido</li>
+          <li>Capacitación presencial</li>
+          <li>Migración de datos incluida</li>
+        </ul>
+        <a href="https://wa.me/18494422733?text=Hola%2C%20me%20interesa%20el%20plan%20Mediano%2FGrande%20de%20CredCore" class="btn plan-btn" target="_blank" rel="noopener">Cotizar</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Cómo empezar ═══ -->
+<section id="empezar">
+  <div class="container">
+    <div class="section-tag">Empezar es fácil</div>
+    <h2 class="section-title">De cero a operando en un día.</h2>
+    <p class="section-sub">Sin instalaciones complicadas. Sin servidores que configurar. Cuatro pasos y ya estás trabajando.</p>
+
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h4>Contacto inicial</h4>
+        <p>Escribe al WhatsApp 849-442-2733. Coordinamos una demo gratuita de 15 minutos.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h4>Demo + plan</h4>
+        <p>Ves el sistema en vivo, elegimos el plan que más te conviene y firmamos contrato simple.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h4>Instalación</h4>
+        <p>Descargas, instalas y activas con la clave que te envío. 30 minutos máximo.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h4>Capacitación</h4>
+        <p>Capacito a tu equipo en 4 horas. Quedas operando y con soporte permanente.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA Final ═══ -->
+<section class="cta-final">
+  <div class="container">
+    <h2>¿Listo para profesionalizar tu financiera?</h2>
+    <p>Descarga CredCore ahora, o escríbeme por WhatsApp para una demo personalizada. Sin compromiso.</p>
+    <div class="cta-actions">
+      <a href="https://github.com/rsandoval1212/credcore/releases/latest" class="btn btn-primary">
+        ⬇ Descargar CredCore v1.0.0
+      </a>
+      <a href="https://wa.me/18494422733?text=Hola%20Ronny%2C%20quiero%20una%20demo%20de%20CredCore" class="btn btn-ghost" target="_blank" rel="noopener">
+        💬 Pedir demo
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Footer ═══ -->
+<footer>
+  <div class="container">
+    <div class="footer-brand">
+      <img src="credi.png" alt="CredCore">
+      <span>CredCore</span>
+    </div>
+    <div style="margin-bottom:14px">Sistema profesional de gestión de créditos · República Dominicana</div>
+    <div class="social">
+      <a href="https://wa.me/18494422733" target="_blank" rel="noopener">📱 WhatsApp 849-442-2733</a>
+    </div>
+    <div class="copy">© 2026 Ronny Sandoval · Todos los derechos reservados</div>
+  </div>
+</footer>
+
+</body>
+</html>
