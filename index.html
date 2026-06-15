@@ -54,12 +54,11 @@
   .hero-meta-item{display:flex;align-items:center;gap:8px}
   .hero-meta-item::before{content:'';width:8px;height:8px;border-radius:50%;background:#00c853;box-shadow:0 0 12px #00c853}
 
-  .hero-visual{background:#fff;border-radius:24px;padding:32px;box-shadow:0 30px 80px rgba(0,0,0,.4);position:relative}
-  .hero-visual img{height:180px;margin:0 auto}
-  .hero-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:24px}
-  .hero-stat{background:#f0fdf4;padding:12px;border-radius:10px;text-align:center;border:1px solid #d1fae5}
-  .hero-stat-num{font-size:24px;font-weight:900;color:#00a844;line-height:1}
-  .hero-stat-lbl{font-size:11px;color:#475569;margin-top:4px;font-weight:500}
+  .hero-visual{position:relative}
+  .hero-visual-banner{border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.45);transform:perspective(1200px) rotateY(-3deg) rotateX(2deg);transition:transform .4s}
+  .hero-visual-banner:hover{transform:perspective(1200px) rotateY(0) rotateX(0)}
+  .hero-visual-banner img{width:100%;height:auto;display:block}
+  @media(max-width:880px){.hero-visual-banner{transform:none;max-width:420px;margin:0 auto}}
 
   /* ── Sección genérica ── */
   section{padding:90px 0}
@@ -191,22 +190,8 @@
           <span class="hero-meta-item">WhatsApp integrado</span>
         </div>
       </div>
-      <div class="hero-visual">
-        <img src="credi.png" alt="CredCore logo">
-        <div class="hero-card-stats">
-          <div class="hero-stat">
-            <div class="hero-stat-num">21</div>
-            <div class="hero-stat-lbl">Módulos</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-num">100%</div>
-            <div class="hero-stat-lbl">Offline</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-num">RD$</div>
-            <div class="hero-stat-lbl">Moneda local</div>
-          </div>
-        </div>
+      <div class="hero-visual hero-visual-banner">
+        <img src="hero-banner.png" alt="CredCore - vista del sistema en laptop y móvil">
       </div>
     </div>
   </div>
