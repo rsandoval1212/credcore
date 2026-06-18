@@ -44,6 +44,21 @@ SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 
+_AUDIT_LOG_PATH = os.environ.get('AUDIT_LOG_PATH', str(BASE_DIR / 'audit.log'))
+try:
+    os.makedirs(os.path.dirname(_AUDIT_LOG_PATH) or '.', exist_ok=True)
+    _audit_handler = {
+        'class': 'logging.handlers.RotatingFileHandler',
+        'filename': _AUDIT_LOG_PATH,
+        'maxBytes': 10 * 1024 * 1024,
+        'backupCount': 5,
+        'formatter': 'audit',
+    }
+    _audit_handlers = ['audit_file', 'console']
+except (OSError, PermissionError):
+    _audit_handler = {'class': 'logging.NullHandler'}
+    _audit_handlers = ['console']
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -52,16 +67,10 @@ LOGGING = {
     },
     'handlers': {
         'console': {'class': 'logging.StreamHandler'},
-        'audit_file': {
-            'class': 'logging.handlers.RotatingFileHandler',
-            'filename': str(BASE_DIR / 'audit.log'),
-            'maxBytes': 10 * 1024 * 1024,  # 10MB
-            'backupCount': 5,
-            'formatter': 'audit',
-        },
+        'audit_file': _audit_handler,
     },
     'loggers': {
-        'credcore.audit': {'handlers': ['audit_file', 'console'], 'level': 'INFO'},
+        'credcore.audit': {'handlers': _audit_handlers, 'level': 'INFO'},
     },
     'root': {'handlers': ['console'], 'level': 'INFO'},
 }
