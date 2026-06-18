@@ -48,7 +48,6 @@ export default function CustomerFormModal({ customer, onClose, onSaved }: Props)
   const set = (field: keyof Customer, value: unknown) => setForm(f => ({ ...f, [field]: value }))
 
   const handleSave = async () => {
-    if (!form.branch || Number(form.branch) === 0) { toast.error('Selecciona una sucursal'); return }
     if (!form.first_name && !form.company_name) { toast.error('Ingresa el nombre del cliente'); return }
     if (!form.id_number) { toast.error('Ingresa el número de documento'); return }
     if (!form.phone1) { toast.error('Ingresa el teléfono principal'); return }
@@ -203,12 +202,14 @@ function StepPersonal({ form, set, branches, photoPreview, onPhotoChange }: {
             <option value="JURIDICA">Persona Jurídica</option>
           </select>
         </Field>
-        <Field label="Sucursal" required>
-          <select value={form.branch as number || ''} onChange={e => set('branch', Number(e.target.value))} className={inputCls}>
-            <option value="">Seleccionar...</option>
-            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </select>
-        </Field>
+        {branches.length > 1 ? (
+          <Field label="Sucursal">
+            <select value={form.branch as number || ''} onChange={e => set('branch', Number(e.target.value))} className={inputCls}>
+              <option value="">Sucursal principal (automática)</option>
+              {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+          </Field>
+        ) : null}
       </div>
 
       {form.customer_type === 'NATURAL' ? (

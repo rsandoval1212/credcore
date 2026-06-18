@@ -28,7 +28,7 @@ class ImportTemplateView(APIView):
             'telefono*', 'telefono2', 'email', 'whatsapp',
             'direccion', 'sector', 'municipio', 'provincia',
             'ingreso_mensual', 'gastos_mensuales', 'ocupacion',
-            'sucursal_id*',
+            'sucursal_id (opcional)',
         ]
 
         BLUE = 'FF1E3A5F'
@@ -61,7 +61,7 @@ class ImportTemplateView(APIView):
             ('sexo', 'M para masculino, F para femenino', 'No', 'M'),
             ('telefono', 'Teléfono principal', 'Sí', '809-555-0001'),
             ('ingreso_mensual', 'Ingreso mensual en RD$', 'No', '35000'),
-            ('sucursal_id', 'ID de la sucursal (ver pestaña Sucursales)', 'Sí', '1'),
+            ('sucursal_id', 'ID de sucursal — dejar vacío usa la sucursal principal', 'No', '1'),
         ]
         for i, row in enumerate(instrucciones, 1):
             for j, val in enumerate(row, 1):
@@ -171,15 +171,15 @@ class ImportCustomersView(APIView):
                     except Exception:
                         pass
 
-                # Sucursal
+                # Sucursal: usa la enviada o la principal automáticamente
                 branch = None
                 if branch_id:
                     try:
                         branch = Branch.objects.get(id=branch_id)
                     except Branch.DoesNotExist:
-                        errors.append(f'Fila {row_num}: sucursal {branch_id} no encontrada')
-                        skipped += 1
-                        continue
+                        branch = Branch.get_main()
+                else:
+                    branch = Branch.get_main()
 
                 from apps.core.utils import generate_code
                 Customer.objects.create(

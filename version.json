@@ -1,1 +1,1 @@
-{"version":"1.1.2","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.2-Setup.exe","notes":"Hotfix crítico: corrige PermissionError al iniciar en PCs con instalación en Program Files (logs redirigidos a %APPDATA%)."}
+{"version":"1.1.3","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.3-Setup.exe","notes":"UX: crear clientes ya no exige seleccionar sucursal manualmente, e importar Excel ahora usa la sucursal principal automáticamente cuando no se especifica."}
