@@ -39,6 +39,7 @@ if not _admin_pw or _admin_pw in ('Admin123!', 'AdminCredCore123!', 'admin123'):
     )
 
 # Security
+ENFORCE_2FA = os.environ.get('ENFORCE_2FA', 'true').lower() == 'true'
 SECURE_SSL_REDIRECT = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True

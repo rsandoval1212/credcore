@@ -76,11 +76,13 @@ class TwoFactorEnforcementMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        # Solo aplicar a rutas API no exentas
+        from django.conf import settings
+        if not getattr(settings, 'ENFORCE_2FA', False):
+            return self.get_response(request)
+
         if any(request.path.startswith(p) for p in EXEMPT_PATHS):
             return self.get_response(request)
 
-        # Solo aplicar si el usuario está autenticado y es staff
         user = getattr(request, 'user', None)
         if not user or not getattr(user, 'is_authenticated', False):
             return self.get_response(request)
