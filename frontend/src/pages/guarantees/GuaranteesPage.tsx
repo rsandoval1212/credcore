@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Shield, Search, RefreshCw, ChevronLeft, ChevronRight, Car, Home, Wrench, X } from 'lucide-react'
+import { Shield, Search, RefreshCw, ChevronLeft, ChevronRight, Car, Home, Wrench, X, Plus } from 'lucide-react'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
+import GuaranteeFormModal from './GuaranteeFormModal'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 
@@ -24,6 +25,7 @@ const STATUS_COLORS: Record<string, string> = {
 const fmt = (n: number) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 0 }).format(n)
 
 export default function GuaranteesPage() {
+  const [showForm, setShowForm] = useState(false)
   const [guarantees, setGuarantees] = useState<Guarantee[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -56,7 +58,13 @@ export default function GuaranteesPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-2xl font-bold text-gray-900">Garantías</h1><p className="text-sm text-gray-500 mt-1">{totalCount} garantías registradas</p></div>
+        <button onClick={() => setShowForm(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium">
+          <Plus className="h-4 w-4" /> Registrar Garantía
+        </button>
       </div>
+
+      {showForm && <GuaranteeFormModal onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load() }} />}
 
       <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-wrap gap-3">
         <div className="flex-1 min-w-52 relative">

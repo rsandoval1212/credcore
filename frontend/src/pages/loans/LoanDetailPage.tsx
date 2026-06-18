@@ -539,6 +539,14 @@ function TabCliente({ loan }: { loan: Loan }) {
 }
 
 // ── Tab: Tabla de amortización ────────────────────────────────────────────────
+function formatWaPhone(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '')
+  if (digits.length === 11 && digits.startsWith('1')) return digits
+  if (digits.length === 10) return '1' + digits
+  if (digits.length === 7) return '1809' + digits
+  return digits
+}
+
 function TabTabla({ schedule, loan, onGenerate, generating }: {
   schedule: LoanScheduleItem[]; loan: Loan; onGenerate: () => void; generating: boolean
 }) {
@@ -582,11 +590,24 @@ function TabTabla({ schedule, loan, onGenerate, generating }: {
                 <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Pagado</th>
                 <th className="text-right px-3 py-2.5 font-semibold text-gray-600">Saldo</th>
                 <th className="text-center px-3 py-2.5 font-semibold text-gray-600">Estado</th>
+                <th className="px-3 py-2.5 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {schedule.map(item => {
                 const isOver = item.is_overdue
+                const canRemind = item.status !== 'PAID' && item.status !== 'WAIVED'
+                const cd = loan.customer_data || (typeof loan.customer === 'object' ? loan.customer : null)
+                const custPhone = (cd as Record<string, string> | null)?.whatsapp
+                  || (cd as Record<string, string> | null)?.phone1
+                  || ''
+                const remaining = item.total_amount - (item.total_paid || 0)
+                const waMsg = isOver
+                  ? `Estimado/a ${loan.customer_name}, le recordamos que la cuota #${item.installment_number} de su préstamo ${loan.loan_number} por ${fmt(remaining)} venció el ${fmtDate(item.due_date)}. Por favor comuníquese con nosotros a la brevedad.`
+                  : `Estimado/a ${loan.customer_name}, le recordamos que su cuota #${item.installment_number} del préstamo ${loan.loan_number} por ${fmt(remaining)} vence el ${fmtDate(item.due_date)}. ¡Gracias!`
+                const waUrl = custPhone
+                  ? `https://wa.me/${formatWaPhone(custPhone)}?text=${encodeURIComponent(waMsg)}`
+                  : ''
                 return (
                   <tr key={item.id} className={`${item.status === 'PAID' ? 'opacity-60' : ''} ${isOver ? 'bg-red-50/50' : 'hover:bg-gray-50'}`}>
                     <td className="px-3 py-2.5 text-center text-gray-400 text-xs">{item.installment_number}</td>
@@ -600,6 +621,17 @@ function TabTabla({ schedule, loan, onGenerate, generating }: {
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${SCHEDULE_COLORS[isOver ? 'OVERDUE' : item.status] || 'bg-gray-50 text-gray-600'}`}>
                         {isOver ? 'Vencida' : item.status === 'PAID' ? 'Pagada' : item.status === 'PARTIAL' ? 'Parcial' : item.status === 'WAIVED' ? 'Condonada' : 'Pendiente'}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      {canRemind && waUrl ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); window.open(waUrl, '_blank', 'noopener,noreferrer') }}
+                          title={isOver ? 'Cobrar por WhatsApp' : 'Recordar por WhatsApp'}
+                          className={`p-1.5 rounded-lg transition-colors ${isOver ? 'hover:bg-red-100 text-red-500' : 'hover:bg-green-50 text-green-600'}`}
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 )

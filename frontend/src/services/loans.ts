@@ -23,6 +23,22 @@ export const loansService = {
   simulate: (data: { product_id: number; amount: number; term_months: number; start_date?: string }) =>
     api.post('/loans/simulate/', data),
 
+  // Préstamo directo (sin pasar por el módulo de solicitudes)
+  direct: (data: {
+    customer: string | number
+    product: number
+    amount: number
+    term_months?: number
+    rate?: number
+    payment_frequency?: string
+    total_installments?: number
+    client_installments?: number
+    total_to_receive?: number
+    days?: number
+    is_confidential?: boolean
+    disbursement_date?: string
+  }) => api.post<Loan>('/loans/direct/', data),
+
   writeOff: (id: string, reason: string) =>
     api.post(`/loans/${id}/write_off/`, { reason }),
 

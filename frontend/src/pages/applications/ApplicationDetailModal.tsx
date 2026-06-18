@@ -5,6 +5,7 @@ import {
   DollarSign, Calendar, BarChart3, Edit3,
 } from 'lucide-react'
 import { applicationsService } from '@/services/applications'
+import { notificationsService } from '@/services/notifications'
 import type { LoanApplication, ApplicationStatus } from '@/types'
 import { extractApiError } from '@/utils/apiError'
 import toast from 'react-hot-toast'
@@ -74,12 +75,40 @@ export default function ApplicationDetailModal({ application: app, onClose, onUp
     }
   }
 
+  // Aprobar: desembolsa automáticamente (crea el préstamo) y notifica por WhatsApp
+  const handleApprove = async () => {
+    setLoading(true)
+    try {
+      const r = await applicationsService.approve(app.id, {
+        approved_amount: parseFloat(approveData.approved_amount),
+        approved_term_months: parseInt(approveData.approved_term_months),
+        approved_rate: parseFloat(approveData.approved_rate),
+        comments: approveData.comments,
+      })
+      const { application, loan, wa_url } = r.data
+      toast.success(`Aprobada · préstamo ${loan?.loan_number ?? ''} creado`)
+      if (wa_url) {
+        notificationsService.openWhatsApp(wa_url)
+        toast(`Notificando a ${application.customer_name} por WhatsApp`, { icon: '📱' })
+      } else {
+        toast('El cliente no tiene WhatsApp/teléfono para notificar', { icon: '⚠️' })
+      }
+      setShowApproveForm(false)
+      onUpdated(application)
+    } catch (e: unknown) {
+      toast.error(extractApiError(e, 'Error procesando la aprobación'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDisburse = async () => {
     if (!window.confirm('¿Confirmas el desembolso? Se creará el préstamo automáticamente.')) return
     setLoading(true)
     try {
-      await applicationsService.disburse(app.id)
+      const r = await applicationsService.disburse(app.id)
       toast.success('Préstamo desembolsado exitosamente')
+      if (r.data?.wa_url) notificationsService.openWhatsApp(r.data.wa_url)
       onClose()
     } catch (e: unknown) {
       toast.error(extractApiError(e, 'Error en desembolso'))
@@ -89,18 +118,18 @@ export default function ApplicationDetailModal({ application: app, onClose, onUp
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[92vh] flex flex-col">
 
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 shrink-0">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-lg font-bold text-gray-900">{app.application_number}</h2>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                <h2 className="text-base sm:text-lg font-bold text-gray-900">{app.application_number}</h2>
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${meta.color}`}>{meta.label}</span>
               </div>
-              <p className="text-sm text-gray-500 mt-0.5">{app.customer_name} · {app.product_name}</p>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">{app.customer_name} · {app.product_name}</p>
             </div>
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
               <X className="h-5 w-5 text-gray-400" />
@@ -129,13 +158,14 @@ export default function ApplicationDetailModal({ application: app, onClose, onUp
         </div>
 
         {/* Workflow Actions Footer */}
-        <div className="shrink-0 border-t border-gray-100 px-6 py-4">
+        <div className="shrink-0 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4">
 
           {/* Approve form */}
           {showApproveForm && (
             <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
               <p className="text-sm font-semibold text-emerald-700 flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Aprobar Solicitud</p>
-              <div className="grid grid-cols-3 gap-3">
+              <p className="text-xs text-emerald-600 -mt-1">Al confirmar se crea el préstamo automáticamente y se abre WhatsApp para notificar al cliente.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs text-gray-600 mb-1">Monto aprobado</label>
                   <input type="number" value={approveData.approved_amount} onChange={e => setApproveData(d => ({ ...d, approved_amount: e.target.value }))}
@@ -156,12 +186,7 @@ export default function ApplicationDetailModal({ application: app, onClose, onUp
                 className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowApproveForm(false)} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
-                <button onClick={() => action(() => applicationsService.approve(app.id, {
-                  approved_amount: parseFloat(approveData.approved_amount),
-                  approved_term_months: parseInt(approveData.approved_term_months),
-                  approved_rate: parseFloat(approveData.approved_rate),
-                  comments: approveData.comments,
-                }), 'Solicitud aprobada')} disabled={loading}
+                <button onClick={handleApprove} disabled={loading}
                   className="px-4 py-1.5 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-60 font-medium">
                   {loading ? 'Procesando...' : 'Confirmar Aprobación'}
                 </button>
@@ -296,7 +321,7 @@ function TabFinanciero({ app }: { app: LoanApplication }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {/* Cuota estimada */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
           <p className="text-xs font-semibold text-blue-500 uppercase mb-1 flex items-center gap-1">

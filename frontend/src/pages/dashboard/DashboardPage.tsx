@@ -15,15 +15,20 @@ function KPICard({ label, value, sublabel, icon: Icon, color, textColor }: {
   icon: React.ElementType; color: string; textColor?: string
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
+    <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-gray-500 truncate">{label}</p>
-          <p className={`text-xl font-black mt-1 truncate ${textColor || 'text-gray-900'}`}>{value}</p>
-          {sublabel && <p className="text-xs text-gray-400 mt-0.5 truncate">{sublabel}</p>}
+          <p className="text-[11px] sm:text-xs font-medium text-gray-500 truncate">{label}</p>
+          <p
+            className={`text-base sm:text-xl font-black mt-1 truncate ${textColor || 'text-gray-900'}`}
+            title={value}
+          >
+            {value}
+          </p>
+          {sublabel && <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">{sublabel}</p>}
         </div>
-        <div className={`p-2.5 rounded-xl ${color} shrink-0 ml-3`}>
-          <Icon className="h-5 w-5 text-white" />
+        <div className={`p-2 sm:p-2.5 rounded-xl ${color} shrink-0`}>
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
         </div>
       </div>
     </div>
@@ -81,15 +86,15 @@ export default function DashboardPage() {
     : ''
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Título */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-500 text-sm capitalize">{todayLabel}</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-gray-500 text-xs sm:text-sm capitalize">{todayLabel}</p>
       </div>
 
       {/* KPIs principales — fila 1 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           label="Cartera Activa"
           value={formatCurrency(d.total_portfolio || 0)}
@@ -123,7 +128,7 @@ export default function DashboardPage() {
       </div>
 
       {/* KPIs secundarios — fila 2 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KPICard
           label="Cartera en Mora"
           value={formatCurrency(d.overdue_portfolio || 0)}
@@ -194,9 +199,9 @@ export default function DashboardPage() {
       </div>
 
       {/* Resumen ejecutivo del mes */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-gray-700 mb-4">Resumen del Mes</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {[
             { label: 'Desembolsos', value: formatCurrency(d.disbursements_this_month || 0), color: 'text-blue-600' },
             { label: 'Cobros totales', value: formatCurrency(d.collections_this_month || 0), color: 'text-emerald-600' },
@@ -205,9 +210,9 @@ export default function DashboardPage() {
             { label: 'P. en mora', value: String(d.overdue_loans_count || 0), color: 'text-red-600' },
             { label: 'Tasa morosidad', value: `${(d.delinquency_rate || 0).toFixed(2)}%`, color: (d.delinquency_rate || 0) > 10 ? 'text-red-600' : 'text-emerald-600' },
           ].map(item => (
-            <div key={item.label} className="text-center py-3 border-b border-gray-50 last:border-0 md:border-b-0 md:border-r md:last:border-0">
-              <p className={`text-lg font-black ${item.color}`}>{item.value}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{item.label}</p>
+            <div key={item.label} className="text-center py-2 sm:py-3 px-1 bg-gray-50 lg:bg-transparent rounded-lg lg:rounded-none lg:border-r lg:border-gray-100 lg:last:border-0">
+              <p className={`text-sm sm:text-lg font-black truncate ${item.color}`} title={item.value}>{item.value}</p>
+              <p className="text-[10px] sm:text-xs text-gray-400 mt-0.5 truncate">{item.label}</p>
             </div>
           ))}
         </div>

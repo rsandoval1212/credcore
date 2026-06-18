@@ -57,7 +57,7 @@ LOCAL_APPS = [
     'apps.collections',
     'apps.accounting',
     'apps.currency_exchange',
-    # 'apps.audit',  # Comentado temporalmente
+    'apps.audit',
     # 'apps.risk',  # Comentado temporalmente
     # 'apps.notifications',  # Comentado temporalmente
     # 'apps.contracts',  # Comentado temporalmente
@@ -79,7 +79,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'apps.core.audit_middleware.AuditLogMiddleware',  # FIX #8: Audit log
+    'apps.core.audit_middleware.AuditLogMiddleware',
+    'apps.core.totp_middleware.TwoFactorEnforcementMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'

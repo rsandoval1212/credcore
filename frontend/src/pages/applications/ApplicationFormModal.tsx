@@ -111,17 +111,17 @@ export default function ApplicationFormModal({ onClose, onSaved }: Props) {
   const fmt = (n: number) => new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP', maximumFractionDigits: 0 }).format(n)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">Nueva Solicitud de Préstamo</h2>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
+          <h2 className="text-base sm:text-lg font-bold text-gray-900">Nueva Solicitud</h2>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
             <X className="h-5 w-5 text-gray-400" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
           {/* Buscar cliente */}
           <div>
             <label className="block text-xs font-semibold text-gray-600 mb-1">Cliente <span className="text-red-500">*</span></label>
@@ -191,7 +191,7 @@ export default function ApplicationFormModal({ onClose, onSaved }: Props) {
           </div>
 
           {/* Monto y plazo */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Monto Solicitado (RD$) <span className="text-red-500">*</span></label>
               <input
@@ -289,7 +289,7 @@ export default function ApplicationFormModal({ onClose, onSaved }: Props) {
                   )}
                 </span>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="text-center">
                   <p className="text-xl font-black text-primary-700">{fmt(simulated.monthly)}</p>
                   <p className="text-xs text-gray-500">Cuota mensual</p>
@@ -337,7 +337,7 @@ export default function ApplicationFormModal({ onClose, onSaved }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-100">
           <button onClick={onClose} className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
           <button
             onClick={handleSave}

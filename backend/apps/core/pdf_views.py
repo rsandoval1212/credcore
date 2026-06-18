@@ -66,18 +66,97 @@ def _base_styles():
     return custom, DARK, BLUE, GRAY, LIGHT, colors
 
 
+def _company_logo_flowable(company, max_h=1.5):
+    """Devuelve un flowable Image con el logo de la empresa configurado en
+    Configuración, escalado a una altura máxima (cm), o None si no hay logo
+    legible. Marca blanca: cada empresa imprime su propio logo.
+
+    El logo se reduce con PIL a máx 400px antes de incrustarlo; si no, un logo
+    de varios MB inflaría cada documento (recibos, estados) y dificultaría
+    compartirlos por WhatsApp/correo.
+    """
+    import os, io as _io
+    from reportlab.platypus import Image
+    from reportlab.lib.units import cm
+    try:
+        logo = getattr(company, 'logo', None)
+        path = logo.path if logo else None
+        if not path or not os.path.exists(path):
+            return None
+        try:
+            from PIL import Image as PILImage
+            pim = PILImage.open(path)
+            pim.thumbnail((400, 400))
+            if pim.mode in ('RGBA', 'P', 'LA'):
+                fmt, pim2 = 'PNG', pim.convert('RGBA')
+            else:
+                fmt, pim2 = 'JPEG', pim.convert('RGB')
+            buf = _io.BytesIO()
+            pim2.save(buf, format=fmt)
+            buf.seek(0)
+            img = Image(buf)
+        except Exception:
+            img = Image(path)  # sin PIL: incrustar original
+        ratio = (img.imageWidth / img.imageHeight) if img.imageHeight else 1.0
+        img.drawHeight = max_h * cm
+        img.drawWidth = max_h * cm * ratio
+        # Limitar ancho para que no invada el bloque de texto
+        if img.drawWidth > 4.5 * cm:
+            img.drawWidth = 4.5 * cm
+            img.drawHeight = (4.5 * cm) / ratio if ratio else max_h * cm
+        return img
+    except Exception:
+        return None
+
+
+def _company_info_lines(company, s):
+    """Líneas de texto con los datos de la empresa configurada (nombre + contacto)."""
+    from reportlab.platypus import Paragraph
+    lines = [Paragraph(company.company_name.upper(), s['title'])]
+    bits = []
+    if getattr(company, 'tax_id', ''):
+        bits.append(f"RNC: {company.tax_id}")
+    if company.address:
+        bits.append(company.address.replace('\n', ' '))
+    tels = [t for t in [company.phone, getattr(company, 'phone2', '')] if t]
+    if tels:
+        bits.append('Tel: ' + ' / '.join(tels))
+    if company.email:
+        bits.append(company.email)
+    if getattr(company, 'website', ''):
+        bits.append(company.website)
+    for b in bits:
+        lines.append(Paragraph(b, s['small']))
+    return lines
+
+
 def _header_block(elements, company, title: str, subtitle: str = '', styles=None):
-    """Bloque de encabezado con logo/nombre de empresa + título del documento."""
-    from reportlab.platypus import Paragraph, Spacer, HRFlowable
-    from reportlab.lib import colors
+    """Bloque de encabezado (membrete) con el LOGO y los datos de la empresa
+    configurada en Configuración + título del documento. Compartido por todos
+    los PDFs (recibo, contrato, amortización, estado) → marca blanca uniforme."""
+    from reportlab.platypus import Paragraph, Spacer, HRFlowable, Table, TableStyle
+    from reportlab.lib.units import cm
 
     s, DARK, BLUE, GRAY, LIGHT, c = styles or _base_styles()
 
-    elements.append(Paragraph(company.company_name.upper(), s['title']))
-    if company.address:
-        elements.append(Paragraph(f"{company.address} | Tel: {company.phone}", s['small']))
-    if company.email:
-        elements.append(Paragraph(company.email, s['small']))
+    info_lines = _company_info_lines(company, s)
+    logo = _company_logo_flowable(company)
+
+    if logo is not None:
+        # Membrete: logo a la izquierda, datos de la empresa a la derecha
+        head = Table([[logo, info_lines]], colWidths=[5 * cm, None])
+        head.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(head)
+    else:
+        for ln in info_lines:
+            elements.append(ln)
+
     elements.append(HRFlowable(width='100%', thickness=2, color=DARK, spaceAfter=8))
     elements.append(Paragraph(title, s['h2']))
     if subtitle:
@@ -88,6 +167,24 @@ def _header_block(elements, company, title: str, subtitle: str = '', styles=None
 def _footer_text(company):
     today = date.today().strftime('%d/%m/%Y')
     return f"{company.company_name}  •  {company.phone or ''}  •  {today}  •  Documento generado automáticamente"
+
+
+def _footer_canvas(company):
+    """Callback que dibuja el pie (datos de la empresa configurada) en el borde
+    inferior de CADA página, sin ocupar el flujo de contenido (así nunca genera
+    una página extra). Se pasa a doc.build(onFirstPage=..., onLaterPages=...)."""
+    from reportlab.lib import colors
+    from reportlab.lib.units import cm
+    text = _footer_text(company)
+
+    def _draw(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 7)
+        canvas.setFillColor(colors.HexColor('#6B7280'))
+        canvas.drawCentredString(doc.pagesize[0] / 2.0, 1.0 * cm, text)
+        canvas.restoreState()
+
+    return _draw
 
 
 # ── RECIBO DE PAGO ─────────────────────────────────────────────────────────────
@@ -206,9 +303,9 @@ class PaymentReceiptPDFView(APIView):
             elements.append(HRFlowable(width='100%', thickness=1, color=GRAY))
             elements.append(Spacer(1, 4))
             elements.append(Paragraph(company.receipt_footer, styles['footer']))
-        elements.append(Paragraph(_footer_text(company), styles['footer']))
 
-        doc.build(elements)
+        _fcb = _footer_canvas(company)
+        doc.build(elements, onFirstPage=_fcb, onLaterPages=_fcb)
         return _pdf_response(buf, f'recibo_{payment.receipt_number}.pdf')
 
 
@@ -241,8 +338,44 @@ class AmortizationPDFView(APIView):
 
         _header_block(elements, company,
                       f'TABLA DE AMORTIZACIÓN — {loan.loan_number}',
-                      f'Cliente: {loan.customer.get_full_name()}  |  Producto: {loan.product.name if loan.product else ""}  |  Plazo: {loan.term_months} meses  |  Tasa: {loan.annual_interest_rate}% anual',
+                      '',
                       (styles, DARK, BLUE, GRAY, LIGHT, c))
+
+        # ── Datos del cliente y del préstamo (a quién corresponde la tabla) ──────
+        cust = loan.customer
+        _addr = ', '.join(p for p in [
+            getattr(cust, 'address', '') or '',
+            getattr(cust, 'sector', '') or '',
+            getattr(cust, 'municipality', '') or '',
+            getattr(cust, 'province', '') or '',
+        ] if p) or '—'
+        _tel = cust.phone1 or getattr(cust, 'whatsapp', '') or '—'
+        # Envolver valores potencialmente largos en Paragraph para que ajusten
+        # dentro de su celda en vez de encimarse con la columna derecha.
+        _addr_p = Paragraph(_addr, styles['body'])
+        _prod_p = Paragraph(loan.product.name if loan.product else '—', styles['body'])
+        info = [
+            ['Cliente:',   Paragraph(cust.get_full_name(), styles['body']), 'Préstamo N°:',    loan.loan_number],
+            ['Cédula/ID:', cust.id_number or '—',                           'Producto:',       _prod_p],
+            ['Teléfono:',  _tel,                                             'Código cliente:', cust.customer_code or '—'],
+            ['Dirección:', _addr_p,                                          'Tasa / Plazo:',   f'{loan.annual_interest_rate}% anual · {loan.term_months} meses'],
+        ]
+        t_info = Table(info, colWidths=[3*cm, 8.5*cm, 3.5*cm, 6.5*cm])
+        t_info.setStyle(TableStyle([
+            ('FONTNAME',  (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTNAME',  (2,0), (2,-1), 'Helvetica-Bold'),
+            ('FONTNAME',  (1,0), (1,-1), 'Helvetica'),
+            ('FONTNAME',  (3,0), (3,-1), 'Helvetica'),
+            ('FONTSIZE',  (0,0), (-1,-1), 9),
+            ('TEXTCOLOR', (0,0), (0,-1), DARK),
+            ('TEXTCOLOR', (2,0), (2,-1), DARK),
+            ('VALIGN',    (0,0), (-1,-1), 'TOP'),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ('TOPPADDING',    (0,0), (-1,-1), 3),
+            ('LINEBELOW', (0,-1), (-1,-1), 0.5, colors.HexColor('#E5E7EB')),
+        ]))
+        elements.append(t_info)
+        elements.append(Spacer(1, 6))
 
         # Resumen
         resumen = [
@@ -319,8 +452,8 @@ class AmortizationPDFView(APIView):
             ('ROWBACKGROUNDS',(0,1), (-1,-2), [colors.white, colors.HexColor('#F9FAFB')]),
             ('BACKGROUND',   (0,-1), (-1,-1), colors.HexColor('#EFF6FF')),
             ('FONTNAME',     (0,-1), (-1,-1), 'Helvetica-Bold'),
-            ('BOTTOMPADDING',(0,0), (-1,-1), 3),
-            ('TOPPADDING',   (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING',(0,0), (-1,-1), 2),
+            ('TOPPADDING',   (0,0), (-1,-1), 2),
         ]
         # Colorear por estado
         for i, row in enumerate(schedule, 1):
@@ -331,10 +464,9 @@ class AmortizationPDFView(APIView):
 
         t_sched.setStyle(TableStyle(row_styles))
         elements.append(t_sched)
-        elements.append(Spacer(1, 10))
-        elements.append(Paragraph(_footer_text(company), styles['footer']))
 
-        doc.build(elements)
+        _fcb = _footer_canvas(company)
+        doc.build(elements, onFirstPage=_fcb, onLaterPages=_fcb)
         return _pdf_response(buf, f'amortizacion_{loan.loan_number}.pdf')
 
 
@@ -447,10 +579,9 @@ class LoanContractPDFView(APIView):
             ('TOPPADDING',(0,1), (-1,-1), 2),
         ]))
         elements.append(t_firma)
-        elements.append(Spacer(1, 10))
-        elements.append(Paragraph(_footer_text(company), styles['footer']))
 
-        doc.build(elements)
+        _fcb = _footer_canvas(company)
+        doc.build(elements, onFirstPage=_fcb, onLaterPages=_fcb)
         return _pdf_response(buf, f'contrato_{loan.loan_number}.pdf')
 
 
@@ -584,7 +715,7 @@ class AccountStatementPDFView(APIView):
         if company.statement_footer:
             elements.append(HRFlowable(width='100%', thickness=1, color=GRAY))
             elements.append(Paragraph(company.statement_footer, styles['footer']))
-        elements.append(Paragraph(_footer_text(company), styles['footer']))
 
-        doc.build(elements)
+        _fcb = _footer_canvas(company)
+        doc.build(elements, onFirstPage=_fcb, onLaterPages=_fcb)
         return _pdf_response(buf, f'estado_cuenta_{loan.loan_number}.pdf')

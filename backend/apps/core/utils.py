@@ -67,6 +67,7 @@ def calculate_amortization_schedule(
     start_date: date = None,
     payment_frequency: str = 'MONTHLY',
     interest_type: str = 'SIMPLE',
+    total_periods_override: int = None,
 ) -> list[dict]:
     """
     Calcula la tabla de amortización con soporte de frecuencias.
@@ -79,6 +80,7 @@ def calculate_amortization_schedule(
         start_date:        Fecha del primer pago
         payment_frequency: DAILY | WEEKLY | BIWEEKLY | MONTHLY
         interest_type:     SIMPLE | COMPOUND
+        total_periods_override: Número exacto de cuotas (evita redondeo)
     """
     if start_date is None:
         start_date = date.today()
@@ -86,10 +88,11 @@ def calculate_amortization_schedule(
     config = FREQUENCY_CONFIG.get(payment_frequency, FREQUENCY_CONFIG['MONTHLY'])
     periods_per_year = Decimal(str(config['periods_per_year']))
 
-    # Convertir plazo en meses → número de períodos de pago
-    # Ej: 12 meses semanal = 52 semanas
-    months_decimal = Decimal(str(term_months))
-    total_periods  = int((months_decimal / 12 * periods_per_year).to_integral_value(ROUND_HALF_UP))
+    if total_periods_override:
+        total_periods = total_periods_override
+    else:
+        months_decimal = Decimal(str(term_months))
+        total_periods  = int((months_decimal / 12 * periods_per_year).to_integral_value(ROUND_HALF_UP))
     if total_periods < 1:
         total_periods = 1
 
@@ -160,6 +163,64 @@ def calculate_amortization_schedule(
                 'balance':          round(balance, 2),
             })
 
+    return schedule
+
+
+def calculate_confidential_schedule(
+    principal: Decimal,
+    total_to_receive: Decimal,
+    days: int,
+    start_date: date = None,
+) -> list[dict]:
+    """Préstamo confidencial: una sola cuota al vencimiento."""
+    if start_date is None:
+        start_date = date.today()
+    profit = total_to_receive - principal
+    due_date = start_date + timedelta(days=days)
+    return [{
+        'installment_number': 1,
+        'due_date': due_date,
+        'principal_amount': round(principal, 2),
+        'interest_amount': round(profit, 2),
+        'total_amount': round(total_to_receive, 2),
+        'balance': Decimal('0'),
+    }]
+
+
+def calculate_weekly_flat_schedule(
+    principal: Decimal,
+    total_installments: int,
+    client_installments: int,
+    start_date: date = None,
+) -> list[dict]:
+    """
+    Modalidad semanal flat: cuota = capital / cuotas_cliente.
+    El cliente paga total_installments cuotas; la diferencia es ganancia del prestamista.
+    Ej: 13 semanas, 10 del cliente → cuota = monto/10, paga 13 cuotas.
+    """
+    if start_date is None:
+        start_date = date.today()
+
+    cuota = (principal / Decimal(str(client_installments))).quantize(Decimal('0.01'), ROUND_HALF_UP)
+    total_to_pay = cuota * total_installments
+    interest_total = total_to_pay - principal
+    interest_per = (interest_total / Decimal(str(total_installments))).quantize(Decimal('0.01'), ROUND_HALF_UP)
+    principal_per = (principal / Decimal(str(total_installments))).quantize(Decimal('0.01'), ROUND_HALF_UP)
+
+    schedule = []
+    balance = principal
+    for i in range(1, total_installments + 1):
+        p = principal_per if i < total_installments else balance
+        balance = max(Decimal('0'), balance - p)
+        due_date = start_date + timedelta(weeks=i)
+        schedule.append({
+            'installment_number': i,
+            'due_date': due_date,
+            'principal_amount': round(p, 2),
+            'interest_amount': round(interest_per, 2),
+            'total_amount': round(cuota, 2),
+            'balance': round(balance, 2),
+        })
     return schedule
 
 

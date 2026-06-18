@@ -22,6 +22,14 @@ export const customersService = {
   delete: (id: string) =>
     api.delete(`/customers/${id}/`),
 
+  uploadPhoto: (id: string, file: File) => {
+    const fd = new FormData()
+    fd.append('photo', file)
+    return api.patch<Customer>(`/customers/${id}/`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
   getLoanHistory: (id: string) =>
     api.get(`/customers/${id}/loan_history/`),
 

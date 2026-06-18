@@ -356,6 +356,10 @@ export interface Loan {
   term_months: number
   payment_method: string
   payment_method_display?: string
+  payment_frequency?: string
+  payment_frequency_display?: string
+  total_installments?: number
+  client_installments?: number
   late_fee_rate: number
   commission_amount: number
   monthly_payment: number
@@ -376,6 +380,7 @@ export interface Loan {
   maturity_date: string
   last_payment_date?: string
   is_refinanced: boolean
+  is_confidential?: boolean
   notes: string
   schedule?: LoanScheduleItem[]
   next_payment?: {

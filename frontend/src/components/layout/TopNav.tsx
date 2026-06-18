@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 
 // ─── Reloj en tiempo real ─────────────────────────────────────────────────────
-function LiveClock() {
+function LiveClock({ compact = false }: { compact?: boolean }) {
   const [now, setNow] = useState(new Date())
 
   useEffect(() => {
@@ -21,7 +21,18 @@ function LiveClock() {
 
   const day   = DAYS[now.getDay()]
   const date  = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`
-  const time  = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+  const time  = compact
+    ? now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true })
+    : now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-800/60">
+        <Clock className="h-3 w-3 text-primary-400" />
+        <span className="text-xs font-bold text-white font-mono">{time}</span>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col items-end leading-tight shrink-0 border-l border-gray-700 pl-3 ml-2">
@@ -122,9 +133,14 @@ export default function TopNav() {
             <div className="h-7 w-7 bg-white rounded-lg flex items-center justify-center p-0.5 shrink-0">
               <img src={logoUrl} alt={companyName} className="h-full w-full object-contain" />
             </div>
-            <span className="font-bold text-white text-xs hidden xl:block truncate max-w-[90px]">
+            <span className="font-bold text-white text-xs sm:text-sm hidden sm:block truncate max-w-[120px] xl:max-w-[160px]">
               {companyName}
             </span>
+          </div>
+
+          {/* Reloj compacto en mobile/tablet */}
+          <div className="flex lg:hidden">
+            <LiveClock compact />
           </div>
 
           {/* ── Navegación horizontal (desktop) ──────────────────────── */}
@@ -216,8 +232,8 @@ export default function TopNav() {
 
         {/* ── Menú mobile desplegable ───────────────────────────────────── */}
         {mobileOpen && (
-          <div className="lg:hidden border-t border-gray-700 bg-gray-800 px-4 py-3">
-            <nav className="grid grid-cols-3 sm:grid-cols-4 gap-1.5">
+          <div className="lg:hidden border-t border-gray-700 bg-gray-800 px-3 sm:px-4 py-3 max-h-[70vh] overflow-y-auto">
+            <nav className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 sm:gap-2">
               {navItems.map(({ to, icon: Icon, label }) => (
                 <NavLink
                   key={to}
@@ -225,10 +241,10 @@ export default function TopNav() {
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
                     clsx(
-                      'flex flex-col items-center gap-1 p-2.5 rounded-xl text-xs font-medium transition-all',
+                      'flex flex-col items-center gap-1 p-2.5 rounded-xl text-[11px] sm:text-xs font-medium transition-all',
                       isActive
-                        ? 'bg-primary-600 text-white'
-                        : 'text-gray-300 hover:bg-gray-700'
+                        ? 'bg-primary-600 text-white shadow-md'
+                        : 'text-gray-300 hover:bg-gray-700 active:bg-gray-600'
                     )
                   }
                 >

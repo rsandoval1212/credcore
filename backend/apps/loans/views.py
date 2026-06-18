@@ -1,5 +1,6 @@
 """Vistas de préstamos: lista, detalle, amortización, simulador, estadísticas."""
 from decimal import Decimal
+from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count, Sum, Q, Avg
 from rest_framework import viewsets, status, filters
@@ -49,6 +50,8 @@ class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelVie
         user = self.request.user
         if not user.is_superuser and hasattr(user, 'branch') and user.branch:
             qs = qs.filter(branch=user.branch)
+        if not (user.is_superuser or user.is_staff):
+            qs = qs.filter(is_confidential=False)
         return qs
 
     # ── Tabla de amortización ─────────────────────────────────────────────────
@@ -56,6 +59,220 @@ class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelVie
     def schedule(self, request, pk=None):
         loan = self.get_object()
         return Response(LoanScheduleSerializer(loan.schedule.all(), many=True).data)
+
+    # ── Préstamo directo (sin pasar por solicitud) ──────────────────────────────
+    @transaction.atomic
+    @action(detail=False, methods=['post'])
+    def direct(self, request):
+        """Registra un préstamo directo con soporte para modalidades:
+        WEEKLY (semanal flat), BIWEEKLY (quincenal), MONTHLY (mensual)."""
+        from decimal import InvalidOperation
+        from datetime import date, timedelta
+        from dateutil.relativedelta import relativedelta
+        from apps.customers.models import Customer
+        from apps.loan_products.models import LoanProduct
+
+        data = request.data
+        try:
+            customer = Customer.objects.get(pk=data.get('customer'), is_deleted=False)
+        except (Customer.DoesNotExist, ValueError, TypeError):
+            return Response({'detail': 'Cliente no válido.'}, status=400)
+        try:
+            product = LoanProduct.objects.get(pk=data.get('product'))
+        except (LoanProduct.DoesNotExist, ValueError, TypeError):
+            return Response({'detail': 'Producto no válido.'}, status=400)
+
+        try:
+            amount = Decimal(str(data.get('amount')))
+        except (TypeError, ValueError, InvalidOperation):
+            return Response({'detail': 'Monto no válido.'}, status=400)
+        if amount <= 0:
+            return Response({'detail': 'El monto debe ser mayor a cero.'}, status=400)
+
+        branch = customer.branch or product.branch
+        if not branch:
+            return Response({'detail': 'El cliente no tiene sucursal asignada. Edita el cliente primero.'}, status=400)
+
+        if not request.user.is_superuser:
+            user_branch = getattr(request.user, 'branch_id', None)
+            if user_branch and customer.branch_id and user_branch != customer.branch_id:
+                return Response({'detail': 'No puede crear préstamos para clientes de otra sucursal.'}, status=403)
+
+        disb = data.get('disbursement_date')
+        try:
+            disbursement_date = date.fromisoformat(disb) if disb else timezone.now().date()
+        except (TypeError, ValueError):
+            disbursement_date = timezone.now().date()
+
+        frequency = data.get('payment_frequency', 'MONTHLY').upper()
+
+        # ── Modalidad SEMANAL (flat o con tasa) ──
+        if frequency == 'WEEKLY':
+            try:
+                total_inst = int(data.get('total_installments', 13))
+                client_inst = int(data.get('client_installments', 10))
+            except (TypeError, ValueError):
+                return Response({'detail': 'Semanas no válidas.'}, status=400)
+            if total_inst < 1:
+                return Response({'detail': 'El total de semanas debe ser al menos 1.'}, status=400)
+
+            rate_raw = data.get('rate')
+            try:
+                weekly_rate = Decimal(str(rate_raw)) if rate_raw not in (None, '', '0') else None
+            except (TypeError, ValueError, InvalidOperation):
+                weekly_rate = None
+
+            if weekly_rate and weekly_rate > 0:
+                if weekly_rate > Decimal('100'):
+                    return Response({'detail': 'La tasa no puede ser mayor a 100%.'}, status=400)
+                total_interest = amount * weekly_rate / Decimal('100')
+                total_to_pay = amount + total_interest
+                cuota = total_to_pay / Decimal(str(total_inst))
+                effective_rate = weekly_rate
+                client_inst = total_inst
+            else:
+                if client_inst < 1 or client_inst >= total_inst:
+                    return Response({'detail': 'Las semanas del cliente deben ser menores al total.'}, status=400)
+                cuota = amount / Decimal(str(client_inst))
+                total_to_pay = cuota * total_inst
+                total_interest = total_to_pay - amount
+                effective_rate = (total_interest / amount) * 100
+
+            annual_rate = effective_rate * Decimal('52') / Decimal(str(total_inst))
+            term_months = max(1, int((Decimal(str(total_inst)) / Decimal('4.33')).to_integral_value()))
+            maturity_date = disbursement_date + timedelta(weeks=total_inst)
+
+            loan = Loan.objects.create(
+                customer=customer, product=product, branch=branch,
+                principal_amount=amount, outstanding_principal=amount,
+                annual_interest_rate=annual_rate.quantize(Decimal('0.001')),
+                term_months=term_months,
+                payment_frequency='WEEKLY',
+                interest_type='SIMPLE',
+                total_installments=total_inst,
+                client_installments=client_inst,
+                monthly_payment=cuota.quantize(Decimal('0.01')),
+                total_interest=total_interest.quantize(Decimal('0.01')),
+                total_to_pay=total_to_pay.quantize(Decimal('0.01')),
+                disbursement_date=disbursement_date,
+                maturity_date=maturity_date,
+                status='ACTIVE', created_by=request.user,
+            )
+
+        # ── Modalidad CONFIDENCIAL (préstamo rápido, admin fija ganancia) ──
+        elif frequency == 'CONFIDENTIAL':
+            if not (request.user.is_superuser or request.user.is_staff):
+                return Response({'detail': 'Solo administradores pueden crear préstamos confidenciales.'}, status=403)
+            try:
+                days = int(data.get('days', 1))
+            except (TypeError, ValueError):
+                return Response({'detail': 'Días no válidos.'}, status=400)
+
+            total_to_receive_raw = data.get('total_to_receive')
+            rate_raw = data.get('rate')
+            try:
+                conf_rate = Decimal(str(rate_raw)) if rate_raw not in (None, '', '0') else None
+            except (TypeError, ValueError, InvalidOperation):
+                conf_rate = None
+
+            if total_to_receive_raw not in (None, '', '0'):
+                try:
+                    total_to_receive = Decimal(str(total_to_receive_raw))
+                except (TypeError, ValueError, InvalidOperation):
+                    return Response({'detail': 'Total a recibir no válido.'}, status=400)
+            elif conf_rate and conf_rate > 0:
+                if conf_rate > Decimal('500'):
+                    return Response({'detail': 'La tasa no puede ser mayor a 500%.'}, status=400)
+                total_to_receive = amount * (1 + conf_rate / Decimal('100'))
+            else:
+                return Response({'detail': 'Ingrese la tasa de interés o el total a recibir.'}, status=400)
+
+            if total_to_receive <= amount:
+                return Response({'detail': 'El total a recibir debe ser mayor al monto prestado.'}, status=400)
+            if days < 1:
+                return Response({'detail': 'Los días deben ser al menos 1.'}, status=400)
+
+            profit = total_to_receive - amount
+            annual_rate = (profit / amount) * Decimal('365') / Decimal(str(days)) * 100
+            maturity_date = disbursement_date + timedelta(days=days)
+
+            loan = Loan.objects.create(
+                customer=customer, product=product, branch=branch,
+                principal_amount=amount, outstanding_principal=amount,
+                annual_interest_rate=annual_rate.quantize(Decimal('0.001')),
+                term_months=1,
+                payment_frequency='DAILY',
+                interest_type='SIMPLE',
+                is_confidential=True,
+                total_installments=1,
+                monthly_payment=total_to_receive.quantize(Decimal('0.01')),
+                total_interest=profit.quantize(Decimal('0.01')),
+                total_to_pay=total_to_receive.quantize(Decimal('0.01')),
+                disbursement_date=disbursement_date,
+                maturity_date=maturity_date,
+                status='ACTIVE', created_by=request.user,
+            )
+
+        # ── Modalidad QUINCENAL / MENSUAL ──
+        else:
+            try:
+                term = int(data.get('term_months'))
+            except (TypeError, ValueError):
+                return Response({'detail': 'Plazo no válido.'}, status=400)
+            if term <= 0:
+                return Response({'detail': 'El plazo debe ser mayor a cero.'}, status=400)
+
+            rate_raw = data.get('rate')
+            try:
+                period_rate = Decimal(str(rate_raw)) if rate_raw not in (None, '') else Decimal('10')
+            except (TypeError, ValueError, InvalidOperation):
+                return Response({'detail': 'Tasa no válida.'}, status=400)
+            if period_rate <= 0 or period_rate > Decimal('100'):
+                return Response({'detail': 'La tasa debe estar entre 0.01% y 100%.'}, status=400)
+
+            if frequency == 'BIWEEKLY':
+                annual_rate = period_rate * 26
+                term_months = max(1, int((Decimal(str(term)) / 2).to_integral_value()))
+                total_periods = term
+                maturity_date = disbursement_date + timedelta(weeks=term * 2)
+            else:
+                frequency = 'MONTHLY'
+                annual_rate = period_rate * 12
+                term_months = term
+                total_periods = term
+                maturity_date = disbursement_date + relativedelta(months=term)
+
+            # Cuota flat (interés simple)
+            period_r = period_rate / Decimal('100')
+            total_interest = amount * period_r * Decimal(str(total_periods))
+            total_to_pay = amount + total_interest
+            cuota = total_to_pay / Decimal(str(total_periods))
+
+            loan = Loan.objects.create(
+                customer=customer, product=product, branch=branch,
+                principal_amount=amount, outstanding_principal=amount,
+                annual_interest_rate=annual_rate.quantize(Decimal('0.001')),
+                term_months=term_months,
+                payment_frequency=frequency,
+                interest_type='SIMPLE',
+                total_installments=total_periods,
+                monthly_payment=cuota.quantize(Decimal('0.01')),
+                total_interest=total_interest.quantize(Decimal('0.01')),
+                total_to_pay=total_to_pay.quantize(Decimal('0.01')),
+                disbursement_date=disbursement_date,
+                maturity_date=maturity_date,
+                status='ACTIVE', created_by=request.user,
+            )
+
+        try:
+            loan.generate_schedule()
+        except Exception as e:
+            import logging
+            logging.getLogger('credcore.audit').error(
+                f"[SCHEDULE_FAIL] loan={loan.loan_number} error={e}"
+            )
+
+        return Response(LoanDetailSerializer(loan).data, status=status.HTTP_201_CREATED)
 
     # ── Simulador ─────────────────────────────────────────────────────────────
     @action(detail=False, methods=['post'])
@@ -260,16 +477,35 @@ class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelVie
 # ── Función auxiliar para generar tabla ──────────────────────────────────────
 def _build_schedule(loan: Loan):
     """Genera y guarda la tabla de amortización del préstamo."""
-    from apps.core.utils import calculate_amortization_schedule
-    items = calculate_amortization_schedule(
-        principal=loan.principal_amount,
-        annual_rate=loan.annual_interest_rate,
-        term_months=loan.term_months,
-        payment_method=loan.payment_method if loan.payment_method else 'NIVELADA',
-        start_date=loan.disbursement_date,
-        payment_frequency=getattr(loan, 'payment_frequency', 'MONTHLY') or 'MONTHLY',
-        interest_type=getattr(loan, 'interest_type', 'SIMPLE') or 'SIMPLE',
-    )
+    from apps.core.utils import calculate_amortization_schedule, calculate_weekly_flat_schedule, calculate_confidential_schedule
+
+    # Préstamo confidencial (una sola cuota)
+    if loan.is_confidential:
+        items = calculate_confidential_schedule(
+            principal=loan.principal_amount,
+            total_to_receive=loan.total_to_pay,
+            days=(loan.maturity_date - loan.disbursement_date).days,
+            start_date=loan.disbursement_date,
+        )
+    # Modalidad semanal flat (10 de 13)
+    elif loan.payment_frequency == 'WEEKLY' and loan.total_installments and loan.client_installments:
+        items = calculate_weekly_flat_schedule(
+            principal=loan.principal_amount,
+            total_installments=loan.total_installments,
+            client_installments=loan.client_installments,
+            start_date=loan.disbursement_date,
+        )
+    else:
+        items = calculate_amortization_schedule(
+            principal=loan.principal_amount,
+            annual_rate=loan.annual_interest_rate,
+            term_months=loan.term_months,
+            payment_method=loan.payment_method if loan.payment_method else 'NIVELADA',
+            start_date=loan.disbursement_date,
+            payment_frequency=getattr(loan, 'payment_frequency', 'MONTHLY') or 'MONTHLY',
+            interest_type=getattr(loan, 'interest_type', 'SIMPLE') or 'SIMPLE',
+            total_periods_override=loan.total_installments,
+        )
     balance = loan.principal_amount
     to_create = []
     for item in items:

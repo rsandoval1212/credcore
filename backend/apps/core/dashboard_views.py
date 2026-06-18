@@ -785,7 +785,8 @@ class BackupRunView(APIView):
         ts = timezone.now().strftime('%Y%m%d_%H%M%S')
         file_name = f'credcore_backup_{ts}.sqlite3'
 
-        backups_dir = os.path.join(django_settings.BASE_DIR, 'backups')
+        from apps.core.backup_encryption import get_backups_dir
+        backups_dir = get_backups_dir()
         os.makedirs(backups_dir, exist_ok=True)
         dest = os.path.join(backups_dir, file_name)
 
@@ -822,10 +823,27 @@ class BackupRunView(APIView):
             record.file_size_bytes = size
             record.save()
 
+            # Espejar a destinos externos configurados (USB / Drive Desktop / red).
+            # Si no hay destinos o algunos fallan, NO afecta el éxito del respaldo
+            # local — el archivo principal ya está guardado y registrado.
+            mirror_summary = None
+            try:
+                from apps.core.external_mirror import mirror_backup_to_destinations
+                mirror_summary = mirror_backup_to_destinations(dest)
+            except Exception as e:
+                mirror_summary = {'configured': 0, 'ok': 0, 'failed': 0,
+                                  'results': [], 'error': str(e)}
+
+            mensaje = f'Backup creado: {file_name} ({record.file_size_mb} MB)'
+            if mirror_summary and mirror_summary.get('configured'):
+                mensaje += (f" · copiado a {mirror_summary['ok']}/"
+                            f"{mirror_summary['configured']} destino(s) externo(s)")
+
             return Response({
                 'success': True,
-                'message': f'Backup creado: {file_name} ({record.file_size_mb} MB)',
+                'message': mensaje,
                 'record': _serialize_backup_record(record),
+                'mirror': mirror_summary,
             }, status=201)
         except Exception as e:
             record.status = 'FAILED'
@@ -862,8 +880,8 @@ class BackupDownloadView(APIView):
             return Response({'detail': 'El archivo ya no existe en el servidor.'}, status=404)
 
         # FIX M4: Prevenir path traversal — solo permitir archivos en el directorio de backups
-        from django.conf import settings as django_settings
-        backups_dir = os.path.realpath(os.path.join(str(django_settings.BASE_DIR), 'backups'))
+        from apps.core.backup_encryption import get_backups_dir
+        backups_dir = os.path.realpath(get_backups_dir())
         real_path = os.path.realpath(record.file_path)
         if not real_path.startswith(backups_dir):
             return Response({'detail': 'Ruta de archivo no permitida.'}, status=403)
@@ -926,7 +944,8 @@ class BackupRestoreView(APIView):
 
         # 1. Guardar copia de emergencia del estado actual
         ts = tz.now().strftime('%Y%m%d_%H%M%S')
-        backups_dir = os.path.join(django_settings.BASE_DIR, 'backups')
+        from apps.core.backup_encryption import get_backups_dir
+        backups_dir = get_backups_dir()
         os.makedirs(backups_dir, exist_ok=True)
         emergency_path = os.path.join(backups_dir, f'pre_restore_{ts}.sqlite3')
 

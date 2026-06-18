@@ -9,14 +9,31 @@ from django.utils import timezone
 logger = logging.getLogger('credcore.audit')
 
 
+import threading
+
+_current_user = threading.local()
+
+
+def get_current_user():
+    return getattr(_current_user, 'user', None)
+
+
 class AuditLogMiddleware:
-    """Middleware que registra operaciones de escritura (POST/PUT/PATCH/DELETE)."""
+    """Middleware que registra operaciones de escritura (POST/PUT/PATCH/DELETE)
+    y expone el usuario actual para auto-fill de updated_by."""
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
+        user = getattr(request, 'user', None)
+        if user and getattr(user, 'is_authenticated', False):
+            _current_user.user = user
+        else:
+            _current_user.user = None
+
         response = self.get_response(request)
+        _current_user.user = None
 
         # Solo auditar escrituras en la API
         if request.method in ('POST', 'PUT', 'PATCH', 'DELETE') and request.path.startswith('/api/'):

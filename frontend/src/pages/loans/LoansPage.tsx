@@ -4,10 +4,11 @@ import ExportButton from '@/components/ui/ExportButton'
 import {
   CreditCard, Search, Filter, RefreshCw, Eye,
   ChevronLeft, ChevronRight, AlertTriangle,
-  CheckCircle, TrendingDown, TrendingUp, Banknote, Clock,
+  CheckCircle, TrendingDown, TrendingUp, Banknote, Clock, Plus,
 } from 'lucide-react'
 import { loansService } from '@/services/loans'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
+import DirectLoanFormModal from './DirectLoanFormModal'
 import type { Loan, LoanStatus, LoanStats } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -40,6 +41,7 @@ export default function LoansPage() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+  const [showForm, setShowForm] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -73,19 +75,34 @@ export default function LoansPage() {
   useEffect(() => { loadStats() }, [loadStats])
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Préstamos</h1>
-          <p className="text-sm text-gray-500 mt-1">{totalCount} préstamos en el sistema</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Préstamos</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">{totalCount} préstamos en el sistema</p>
         </div>
-        <ExportButton
-          endpoint="/api/v1/reports/export/loans/"
-          label="Exportar Excel"
-          variant="outline"
-        />
+        <div className="flex items-center gap-2 flex-wrap">
+          <ExportButton
+            endpoint="/api/v1/reports/export/loans/"
+            label="Exportar Excel"
+            variant="outline"
+          />
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 text-sm font-medium transition-colors"
+          >
+            <Plus className="h-4 w-4" /> Registrar Préstamo
+          </button>
+        </div>
       </div>
+
+      {showForm && (
+        <DirectLoanFormModal
+          onClose={() => setShowForm(false)}
+          onSaved={() => { setShowForm(false); load(); loadStats() }}
+        />
+      )}
 
       {/* KPIs */}
       {stats && (
@@ -177,10 +194,61 @@ export default function LoansPage() {
           <div className="flex flex-col items-center justify-center py-20 text-gray-400">
             <CreditCard className="h-12 w-12 mb-3 opacity-30" />
             <p className="font-medium">No hay préstamos{statusFilter || search ? ' con esos filtros' : ' registrados'}</p>
-            <p className="text-sm mt-1">Los préstamos se crean desde el módulo de Solicitudes</p>
+            <p className="text-sm mt-1">Usa "Registrar Préstamo" o aprueba una solicitud para crear uno</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Cards mobile */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {loans.map(loan => {
+                const meta = STATUS_META[loan.status]
+                const progress = loan.installments_paid + loan.installments_remaining > 0
+                  ? (loan.installments_paid / (loan.installments_paid + loan.installments_remaining)) * 100
+                  : 0
+                const isOverdue = loan.days_past_due > 0
+                return (
+                  <div key={loan.id}
+                    onClick={() => navigate(`/loans/${loan.id}`)}
+                    className={`p-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100 ${isOverdue ? 'bg-red-50/30' : ''}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 truncate">{loan.customer_name}</p>
+                        <p className="font-mono text-xs text-gray-500">{loan.loan_number}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${meta.color}`}>
+                        {meta.label}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                      <div>
+                        <p className="text-gray-400">Saldo</p>
+                        <p className={`font-semibold ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
+                          {fmt(loan.total_outstanding ?? (loan.outstanding_principal + loan.outstanding_interest + loan.outstanding_late_fees))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Cuota</p>
+                        <p className="font-semibold text-gray-700">{fmt(loan.monthly_payment)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between text-[10px] text-gray-400 mb-0.5">
+                          <span>{loan.installments_paid}/{loan.installments_paid + loan.installments_remaining} cuotas</span>
+                          {isOverdue && <span className="text-red-600 font-semibold">{loan.days_past_due}d mora</span>}
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-primary-400 rounded-full" style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Tabla desktop / tablet */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -264,7 +332,8 @@ export default function LoansPage() {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (

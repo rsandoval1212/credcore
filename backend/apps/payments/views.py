@@ -78,9 +78,24 @@ class PaymentViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         loan = serializer.validated_data['loan']
-        # FIX #9: Lock del préstamo para evitar pagos concurrentes
         from apps.loans.models import Loan
         loan = Loan.objects.select_for_update().get(pk=loan.pk)
+
+        if not self.request.user.is_superuser:
+            user_branch = getattr(self.request.user, 'branch_id', None)
+            if user_branch and loan.branch_id and user_branch != loan.branch_id:
+                raise ValidationError({'loan': 'No puede registrar pagos en préstamos de otra sucursal.'})
+
+        total_outstanding = (
+            Decimal(str(loan.outstanding_principal))
+            + Decimal(str(loan.outstanding_interest))
+            + Decimal(str(loan.outstanding_late_fees))
+        )
+        payment_amount = Decimal(str(serializer.validated_data.get('total_amount', 0)))
+        if payment_amount > total_outstanding and total_outstanding > 0:
+            raise ValidationError({
+                'total_amount': f'El monto (RD$ {payment_amount:,.2f}) excede el saldo pendiente (RD$ {total_outstanding:,.2f}).'
+            })
 
         payment = serializer.save(
             customer=loan.customer,

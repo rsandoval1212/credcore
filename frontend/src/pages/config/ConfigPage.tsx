@@ -11,6 +11,7 @@ import {
 } from '@/services/company'
 import api from '@/services/api'
 import { saveBlob } from '@/utils/download'
+import BackupDestinations from './BackupDestinations'
 import toast from 'react-hot-toast'
 
 const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
@@ -19,14 +20,14 @@ export default function ConfigPage() {
   const [tab, setTab] = useState<'company' | 'backup' | 'support'>('company')
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-sm text-gray-500 mt-1">Administración general del sistema</p>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Configuración</h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">Administración general del sistema</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200">
+      <div className="flex border-b border-gray-200 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
         {[
           { id: 'company', label: 'Empresa', icon: Building2 },
           { id: 'backup',  label: 'Copias de Seguridad', icon: Database },
@@ -35,7 +36,7 @@ export default function ConfigPage() {
           const Icon = t.icon
           return (
             <button key={t.id} onClick={() => setTab(t.id as typeof tab)}
-              className={`flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${tab === t.id ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              className={`flex items-center gap-2 px-3 sm:px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap shrink-0 ${tab === t.id ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
               <Icon className="h-4 w-4" />{t.label}
             </button>
           )
@@ -107,7 +108,7 @@ function CompanyTab() {
 
           {/* Datos básicos */}
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Nombre comercial *">
                 <input value={form.company_name} onChange={e => set('company_name', e.target.value)} className={inputCls} placeholder="Mi Financiera S.A." />
               </Field>
@@ -115,7 +116,7 @@ function CompanyTab() {
                 <input value={form.legal_name} onChange={e => set('legal_name', e.target.value)} className={inputCls} placeholder="Nombre legal de la empresa" />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="RNC / NIT">
                 <input value={form.tax_id} onChange={e => set('tax_id', e.target.value)} className={inputCls} placeholder="000000000" />
               </Field>
@@ -129,7 +130,7 @@ function CompanyTab() {
 
       {/* Contacto */}
       <Section title="Información de Contacto">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Dirección"><input value={form.address} onChange={e => set('address', e.target.value)} className={inputCls} /></Field>
           <Field label="Ciudad"><input value={form.city} onChange={e => set('city', e.target.value)} className={inputCls} /></Field>
           <Field label="Provincia"><input value={form.province} onChange={e => set('province', e.target.value)} className={inputCls} /></Field>
@@ -145,7 +146,7 @@ function CompanyTab() {
 
       {/* Configuración monetaria */}
       <Section title="Configuración Monetaria">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Moneda (código)"><input value={form.currency} onChange={e => set('currency', e.target.value)} className={inputCls} maxLength={3} /></Field>
           <Field label="Símbolo"><input value={form.currency_symbol} onChange={e => set('currency_symbol', e.target.value)} className={inputCls} maxLength={5} /></Field>
           <Field label="Zona horaria"><input value={form.timezone} onChange={e => set('timezone', e.target.value)} className={inputCls} /></Field>
@@ -301,6 +302,9 @@ function BackupTab() {
 
   return (
     <div className="space-y-6">
+      {/* Destinos automáticos de respaldo (USB / Drive Desktop / Carpeta) */}
+      <BackupDestinations />
+
       {/* ── Acciones principales ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Crear backup */}
@@ -362,7 +366,7 @@ function BackupTab() {
             <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${config.enabled ? 'translate-x-7' : ''}`} />
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Frecuencia">
             <select value={config.frequency} onChange={e => setCfg('frequency', e.target.value)} className={inputCls}>
               <option value="DAILY">Diario</option>
@@ -394,52 +398,91 @@ function BackupTab() {
         {records.length === 0 ? (
           <p className="text-center py-8 text-gray-400 text-sm">Sin backups registrados aún. Crea el primero arriba.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-100">
-                  {['Archivo', 'Tamaño', 'Origen', 'Estado', 'Fecha', 'Duración', 'Usuario', ''].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold text-gray-600 text-xs">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {records.map(r => {
-                  const meta = STATUS_META[r.status] || { color: 'bg-gray-100 text-gray-600', icon: null }
-                  const isDownloading = downloading === r.id
-                  return (
-                    <tr key={r.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2.5 font-mono text-xs text-gray-600 max-w-xs truncate">{r.file_name}</td>
-                      <td className="px-3 py-2.5 text-gray-600 text-xs">{r.file_size_mb} MB</td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs">{r.trigger_display}</td>
-                      <td className="px-3 py-2.5">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
-                          {meta.icon}{r.status_display}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs">{r.started_at ? new Date(r.started_at).toLocaleString('es-DO') : '—'}</td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs">{r.duration_seconds ? `${r.duration_seconds}s` : '—'}</td>
-                      <td className="px-3 py-2.5 text-gray-500 text-xs">{r.triggered_by_name}</td>
-                      <td className="px-3 py-2.5">
-                        {r.status === 'COMPLETED' && (
-                          <button
-                            onClick={() => handleDownload(r)}
-                            disabled={isDownloading}
-                            title="Descargar este backup"
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg text-xs font-medium hover:bg-primary-100 disabled:opacity-60 transition-colors">
-                            {isDownloading
-                              ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                              : <Download className="h-3.5 w-3.5" />}
-                            {isDownloading ? 'Descargando...' : 'Descargar'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Cards en mobile */}
+            <div className="md:hidden space-y-3">
+              {records.map(r => {
+                const meta = STATUS_META[r.status] || { color: 'bg-gray-100 text-gray-600', icon: null }
+                const isDownloading = downloading === r.id
+                return (
+                  <div key={r.id} className="border border-gray-200 rounded-lg p-3 bg-white">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <p className="font-mono text-xs text-gray-700 break-all flex-1 min-w-0">{r.file_name}</p>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${meta.color}`}>
+                        {meta.icon}{r.status_display}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-3">
+                      <p><span className="text-gray-400">Tamaño:</span> {r.file_size_mb} MB</p>
+                      <p><span className="text-gray-400">Origen:</span> {r.trigger_display}</p>
+                      <p className="col-span-2"><span className="text-gray-400">Fecha:</span> {r.started_at ? new Date(r.started_at).toLocaleString('es-DO') : '—'}</p>
+                      {r.duration_seconds && <p><span className="text-gray-400">Duración:</span> {r.duration_seconds}s</p>}
+                      <p><span className="text-gray-400">Usuario:</span> {r.triggered_by_name}</p>
+                    </div>
+                    {r.status === 'COMPLETED' && (
+                      <button
+                        onClick={() => handleDownload(r)}
+                        disabled={isDownloading}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg text-xs font-medium hover:bg-primary-100 disabled:opacity-60 transition-colors">
+                        {isDownloading
+                          ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                          : <Download className="h-3.5 w-3.5" />}
+                        {isDownloading ? 'Descargando...' : 'Descargar'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Tabla en desktop / tablet */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100">
+                    {['Archivo', 'Tamaño', 'Origen', 'Estado', 'Fecha', 'Duración', 'Usuario', ''].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold text-gray-600 text-xs">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {records.map(r => {
+                    const meta = STATUS_META[r.status] || { color: 'bg-gray-100 text-gray-600', icon: null }
+                    const isDownloading = downloading === r.id
+                    return (
+                      <tr key={r.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2.5 font-mono text-xs text-gray-600 max-w-xs truncate">{r.file_name}</td>
+                        <td className="px-3 py-2.5 text-gray-600 text-xs">{r.file_size_mb} MB</td>
+                        <td className="px-3 py-2.5 text-gray-500 text-xs">{r.trigger_display}</td>
+                        <td className="px-3 py-2.5">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${meta.color}`}>
+                            {meta.icon}{r.status_display}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-gray-500 text-xs">{r.started_at ? new Date(r.started_at).toLocaleString('es-DO') : '—'}</td>
+                        <td className="px-3 py-2.5 text-gray-500 text-xs">{r.duration_seconds ? `${r.duration_seconds}s` : '—'}</td>
+                        <td className="px-3 py-2.5 text-gray-500 text-xs">{r.triggered_by_name}</td>
+                        <td className="px-3 py-2.5">
+                          {r.status === 'COMPLETED' && (
+                            <button
+                              onClick={() => handleDownload(r)}
+                              disabled={isDownloading}
+                              title="Descargar este backup"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 border border-primary-200 rounded-lg text-xs font-medium hover:bg-primary-100 disabled:opacity-60 transition-colors">
+                              {isDownloading
+                                ? <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                : <Download className="h-3.5 w-3.5" />}
+                              {isDownloading ? 'Descargando...' : 'Descargar'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Section>
     </div>

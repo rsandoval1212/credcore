@@ -88,25 +88,22 @@ class TwoFactorEnforcementMiddleware:
         if not (user.is_staff or user.is_superuser):
             return self.get_response(request)
 
-        # Verificar si tiene 2FA configurado
         totp_secret = getattr(user, 'totp_secret', None)
         if not totp_secret:
-            # Si no tiene secreto, generar uno y notificar
-            # Permitir acceso pero con header de advertencia
-            response = self.get_response(request)
-            response['X-2FA-Required'] = 'true'
-            response['X-2FA-Setup'] = '/api/v1/users/2fa/setup/'
-            return response
+            return JsonResponse({
+                'detail': 'Debe configurar la autenticación de dos factores (2FA).',
+                'setup_url': '/api/v1/users/2fa/setup/',
+                'code': '2fa_setup_required',
+            }, status=403)
 
-        # Verificar claim en JWT
-        totp_verified = getattr(request, '_totp_verified', False)
-        # Buscar en el token JWT decodificado
+        totp_verified = False
         if hasattr(request, 'auth') and request.auth:
             totp_verified = request.auth.get('totp_verified', False)
 
         if not totp_verified:
-            response = self.get_response(request)
-            response['X-2FA-Required'] = 'verify'
-            return response
+            return JsonResponse({
+                'detail': 'Debe verificar su código 2FA antes de continuar.',
+                'code': '2fa_verify_required',
+            }, status=403)
 
         return self.get_response(request)

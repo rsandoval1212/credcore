@@ -22,6 +22,7 @@ class LoanListSerializer(serializers.ModelSerializer):
     product_name  = serializers.CharField(source='product.name', read_only=True)
     branch_name   = serializers.CharField(source='branch.name', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_frequency_display = serializers.CharField(source='get_payment_frequency_display', read_only=True)
     total_outstanding = serializers.SerializerMethodField()
 
     class Meta:
@@ -31,6 +32,8 @@ class LoanListSerializer(serializers.ModelSerializer):
             'product_name', 'branch_name', 'principal_amount', 'outstanding_principal',
             'outstanding_interest', 'outstanding_late_fees', 'total_outstanding',
             'monthly_payment', 'annual_interest_rate', 'term_months',
+            'payment_frequency', 'payment_frequency_display',
+            'total_installments', 'client_installments', 'is_confidential',
             'status', 'status_display', 'days_past_due',
             'disbursement_date', 'maturity_date',
             'installments_paid', 'installments_remaining', 'total_paid',

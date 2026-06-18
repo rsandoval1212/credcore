@@ -18,6 +18,10 @@ staticfiles/
 media/
 /backend/static/
 
+# Backups de base de datos (incluye clave de cifrado — nunca commitear)
+backend/backups/
+backups/
+
 # Node
 node_modules/
 dist/

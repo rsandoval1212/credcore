@@ -1,5 +1,13 @@
 import api from './api'
-import type { LoanApplication, ApplicationStats, LoanProduct, PaginatedResponse } from '@/types'
+import type { LoanApplication, ApplicationStats, LoanProduct, Loan, PaginatedResponse } from '@/types'
+
+// Respuesta del flujo aprobar/desembolsar: la solicitud actualizada, el préstamo
+// creado automáticamente y el enlace de WhatsApp para notificar al cliente.
+export interface DisburseResult {
+  application: LoanApplication
+  loan: Loan
+  wa_url: string
+}
 
 export const applicationsService = {
   list: (params?: Record<string, unknown>) =>
@@ -25,7 +33,7 @@ export const applicationsService = {
     api.post<LoanApplication>(`/loan-applications/${id}/start_review/`, {}),
 
   approve: (id: string, data: { approved_amount?: number; approved_term_months?: number; approved_rate?: number; comments?: string }) =>
-    api.post<LoanApplication>(`/loan-applications/${id}/approve/`, data),
+    api.post<DisburseResult>(`/loan-applications/${id}/approve/`, data),
 
   reject: (id: string, reason: string) =>
     api.post<LoanApplication>(`/loan-applications/${id}/reject/`, { reason }),
@@ -34,7 +42,7 @@ export const applicationsService = {
     api.post<LoanApplication>(`/loan-applications/${id}/cancel/`, { reason }),
 
   disburse: (id: string) =>
-    api.post(`/loan-applications/${id}/disburse/`, {}),
+    api.post<DisburseResult>(`/loan-applications/${id}/disburse/`, {}),
 
   recalculate: (id: string) =>
     api.post<LoanApplication>(`/loan-applications/${id}/recalculate/`, {}),

@@ -28,7 +28,8 @@ class AuthViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         user = serializer.validated_data['user']
         user.failed_login_attempts = 0
-        user.save(update_fields=['failed_login_attempts'])
+        user.locked_until = None
+        user.save(update_fields=['failed_login_attempts', 'locked_until'])
         refresh = RefreshToken.for_user(user)
         response = Response({
             'access': str(refresh.access_token),

@@ -131,9 +131,15 @@ class LoanApplicationViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewse
         self._log(app, 'APPROVED_STEP', request.user, 'Solicitud tomada para revisión')
         return Response(LoanApplicationDetailSerializer(app).data)
 
+    @transaction.atomic
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """Aprobar solicitud."""
+        """Aprobar solicitud.
+
+        Al aprobar se desembolsa automáticamente: se crea el préstamo (queda
+        registrado y activo en el módulo de Préstamos) y se genera el enlace de
+        WhatsApp para notificar al cliente. Todo dentro de una transacción.
+        """
         app = self.get_object()
         if app.status not in ('SUBMITTED', 'UNDER_REVIEW'):
             return Response({'detail': 'La solicitud no puede aprobarse en su estado actual.'}, status=400)
@@ -153,7 +159,24 @@ class LoanApplicationViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewse
             'approved_rate', 'approved_at',
         ])
         self._log(app, 'APPROVED_STEP', request.user, comments or 'Solicitud aprobada')
-        return Response(LoanApplicationDetailSerializer(app).data)
+
+        # ── Desembolso automático: crear el préstamo y marcar como desembolsada ──
+        loan = _create_loan_from_application(app, request.user)
+        app.status = 'DISBURSED'
+        app.disbursed_at = timezone.now()
+        app.save(update_fields=['status', 'disbursed_at'])
+        self._log(app, 'DISBURSED', request.user,
+                  f'Préstamo {loan.loan_number} creado automáticamente al aprobar')
+
+        # ── Notificación WhatsApp al cliente ────────────────────────────────────
+        wa_url = _build_approval_wa_url(app, loan)
+
+        from apps.loans.serializers import LoanDetailSerializer
+        return Response({
+            'application': LoanApplicationDetailSerializer(app).data,
+            'loan': LoanDetailSerializer(loan).data,
+            'wa_url': wa_url,
+        })
 
     @action(detail=True, methods=['post'])
     def reject(self, request, pk=None):
@@ -186,60 +209,28 @@ class LoanApplicationViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewse
     @transaction.atomic
     @action(detail=True, methods=['post'])
     def disburse(self, request, pk=None):
-        """Marcar como desembolsada y crear el préstamo (atómico)."""
+        """Marcar como desembolsada y crear el préstamo (atómico).
+
+        Normalmente el desembolso ocurre automáticamente al aprobar; esta acción
+        queda disponible para solicitudes aprobadas que aún no tengan préstamo.
+        """
         app = self.get_object()
-        if app.status != 'APPROVED':
+        if app.status not in ('APPROVED', 'DISBURSED'):
             return Response({'detail': 'Solo solicitudes aprobadas pueden desembolsarse.'}, status=400)
 
-        # Crear préstamo automáticamente
-        from apps.loans.models import Loan
-        from decimal import Decimal
+        loan = _create_loan_from_application(app, request.user)
 
-        amount = Decimal(str(app.approved_amount or app.requested_amount))
-        term = app.approved_term_months or app.requested_term_months
-        rate = app.approved_rate or app.product.annual_interest_rate
-
-        monthly_rate = rate / Decimal('100') / Decimal('12')
-        if monthly_rate > 0:
-            monthly_payment = amount * monthly_rate / (1 - (1 + monthly_rate) ** (-term))
-        else:
-            monthly_payment = amount / term
-
-        disbursement_date = timezone.now().date()
-        from dateutil.relativedelta import relativedelta
-        maturity_date = disbursement_date + relativedelta(months=term)
-
-        loan = Loan.objects.create(
-            customer=app.customer,
-            product=app.product,
-            branch=app.branch,
-            application=app,
-            principal_amount=amount,
-            outstanding_principal=amount,
-            annual_interest_rate=rate,
-            term_months=term,
-            monthly_payment=monthly_payment.quantize(Decimal('0.01')),
-            disbursement_date=disbursement_date,
-            maturity_date=maturity_date,
-            status='ACTIVE',
-            created_by=request.user,
-        )
-
-        # Generar tabla de amortización
-        try:
-            loan.generate_schedule()
-        except Exception:
-            pass
-
-        app.status = 'DISBURSED'
-        app.disbursed_at = timezone.now()
-        app.save(update_fields=['status', 'disbursed_at'])
-        self._log(app, 'DISBURSED', request.user, f'Préstamo {loan.loan_number} creado')
+        if app.status != 'DISBURSED':
+            app.status = 'DISBURSED'
+            app.disbursed_at = timezone.now()
+            app.save(update_fields=['status', 'disbursed_at'])
+            self._log(app, 'DISBURSED', request.user, f'Préstamo {loan.loan_number} creado')
 
         from apps.loans.serializers import LoanDetailSerializer
         return Response({
             'application': LoanApplicationDetailSerializer(app).data,
             'loan': LoanDetailSerializer(loan).data,
+            'wa_url': _build_approval_wa_url(app, loan),
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['post'])
@@ -284,3 +275,99 @@ class LoanApplicationViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewse
             performed_by=user,
             comments=comments,
         )
+
+
+# ── Helpers de desembolso / notificación ────────────────────────────────────────
+
+def _create_loan_from_application(app, user):
+    """Crea (o devuelve, si ya existe) el préstamo asociado a una solicitud.
+
+    Idempotente: si la solicitud ya tiene un préstamo no crea otro. Usa los
+    valores aprobados (o los solicitados como respaldo) y genera la tabla de
+    amortización.
+    """
+    from apps.loans.models import Loan
+    from dateutil.relativedelta import relativedelta
+
+    existing = Loan.objects.filter(application=app, is_deleted=False).first()
+    if existing:
+        return existing
+
+    # Coerción defensiva: estos valores pueden venir como str desde el request.
+    amount = Decimal(str(app.approved_amount or app.requested_amount))
+    term = int(app.approved_term_months or app.requested_term_months)
+    rate = Decimal(str(app.approved_rate or app.product.annual_interest_rate))
+
+    monthly_rate = rate / Decimal('100') / Decimal('12')
+    if monthly_rate > 0:
+        monthly_payment = amount * monthly_rate / (1 - (1 + monthly_rate) ** (-term))
+    else:
+        monthly_payment = amount / term
+
+    disbursement_date = timezone.now().date()
+    maturity_date = disbursement_date + relativedelta(months=term)
+
+    loan = Loan.objects.create(
+        customer=app.customer,
+        product=app.product,
+        branch=app.branch,
+        application=app,
+        principal_amount=amount,
+        outstanding_principal=amount,
+        annual_interest_rate=rate,
+        term_months=term,
+        monthly_payment=monthly_payment.quantize(Decimal('0.01')),
+        disbursement_date=disbursement_date,
+        maturity_date=maturity_date,
+        status='ACTIVE',
+        created_by=user,
+    )
+
+    try:
+        loan.generate_schedule()
+    except Exception:
+        pass
+
+    return loan
+
+
+def _build_approval_wa_url(app, loan):
+    """URL de WhatsApp para notificar al cliente que su préstamo fue aprobado."""
+    from apps.core.whatsapp import build_wa_url
+    customer = app.customer
+    phone = getattr(customer, 'whatsapp', '') or getattr(customer, 'phone1', '') or ''
+    if not phone:
+        return ''
+
+    try:
+        from apps.core.models import CompanySettings
+        company_name = CompanySettings.get_solo().company_name
+    except Exception:
+        company_name = 'CredCore'
+
+    first_name = (customer.get_full_name() or '').split()[0] if customer.get_full_name() else 'Cliente'
+    first_due = ''
+    try:
+        first = loan.schedule.order_by('installment_number').first()
+        if first and first.due_date:
+            first_due = first.due_date.strftime('%d/%m/%Y')
+    except Exception:
+        pass
+
+    msg = (
+        f"Estimado/a {first_name}, ¡felicidades! 🎉\n\n"
+        f"Su solicitud de préstamo en {company_name} ha sido *APROBADA*.\n"
+        f"────────────────────\n"
+        f"📋 Préstamo: {loan.loan_number}\n"
+        f"💰 Monto: RD${float(loan.principal_amount):,.2f}\n"
+        f"📅 Plazo: {loan.term_months} meses\n"
+        f"💵 Cuota mensual: RD${float(loan.monthly_payment):,.2f}\n"
+    )
+    if first_due:
+        msg += f"📆 Primera cuota: {first_due}\n"
+    msg += (
+        f"────────────────────\n"
+        f"Gracias por confiar en nosotros. Para cualquier consulta, no dude "
+        f"en contactarnos. 🙏"
+    )
+    return build_wa_url(phone, msg)

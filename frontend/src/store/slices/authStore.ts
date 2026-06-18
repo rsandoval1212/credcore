@@ -14,7 +14,6 @@ interface AuthState {
   logout: () => void
 }
 
-// FIX #6: Auto-logout por inactividad (30 min)
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000
 
 export const useAuthStore = create<AuthState>()(
@@ -36,20 +35,17 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, lastActivity: 0 })
-        // Limpiar sessionStorage también
         try { sessionStorage.removeItem('credcore-auth') } catch {}
       },
     }),
     {
       name: 'credcore-auth',
       storage: {
-        // FIX #6: Usar sessionStorage en vez de localStorage (se limpia al cerrar pestaña)
         getItem: (name) => {
           const str = sessionStorage.getItem(name)
           if (!str) return null
           try {
             const parsed = JSON.parse(str)
-            // Verificar timeout de inactividad
             const lastActivity = parsed?.state?.lastActivity || 0
             if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
               sessionStorage.removeItem(name)
@@ -63,18 +59,16 @@ export const useAuthStore = create<AuthState>()(
       },
       partialize: (state: AuthState) => ({
         user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         lastActivity: state.lastActivity,
+        accessToken: null,
+        refreshToken: null,
       } as unknown as AuthState),
     }
   )
 )
 
-// Auto-logout checker: cada 60s verifica inactividad
 if (typeof window !== 'undefined') {
-  // Registrar actividad del usuario
   const touch = () => useAuthStore.getState().touchActivity()
   window.addEventListener('click', touch, { passive: true })
   window.addEventListener('keydown', touch, { passive: true })
@@ -88,6 +82,5 @@ if (typeof window !== 'undefined') {
     }
   }, 60_000)
 
-  // Limpiar localStorage viejo si existe (migración)
   try { localStorage.removeItem('credcore-auth') } catch {}
 }

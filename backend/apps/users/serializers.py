@@ -72,11 +72,31 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, data):
         import logging
+        from django.conf import settings
+        from django.utils import timezone as tz
         audit_logger = logging.getLogger('credcore.audit')
+
+        from apps.users.models import User as UserModel
+        try:
+            target_user = UserModel.objects.get(email=data['email'])
+        except UserModel.DoesNotExist:
+            target_user = None
+
+        if target_user and target_user.locked_until and target_user.locked_until > tz.now():
+            mins = int((target_user.locked_until - tz.now()).total_seconds() // 60) + 1
+            raise serializers.ValidationError(f'Cuenta bloqueada temporalmente. Intente en {mins} minutos.')
+
         user = authenticate(username=data['email'], password=data['password'])
         if not user:
-            # FIX B3: Registrar intentos fallidos de login
             audit_logger.warning(f"[LOGIN_FAILED] email={data['email']} ip={self._get_ip()}")
+            if target_user:
+                target_user.failed_login_attempts += 1
+                max_attempts = getattr(settings, 'MAX_LOGIN_ATTEMPTS', 5)
+                lockout_mins = getattr(settings, 'LOCKOUT_DURATION_MINUTES', 30)
+                if target_user.failed_login_attempts >= max_attempts:
+                    target_user.locked_until = tz.now() + tz.timedelta(minutes=lockout_mins)
+                    audit_logger.warning(f"[ACCOUNT_LOCKED] email={data['email']} ip={self._get_ip()}")
+                target_user.save(update_fields=['failed_login_attempts', 'locked_until'])
             raise serializers.ValidationError('Credenciales incorrectas.')
         if not user.is_active:
             raise serializers.ValidationError('Cuenta inactiva.')

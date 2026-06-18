@@ -91,16 +91,16 @@ export default function LoanApplicationsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Solicitudes de Préstamo</h1>
-          <p className="text-sm text-gray-500 mt-1">{totalCount} solicitudes en total</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Solicitudes de Préstamo</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">{totalCount} solicitudes en total</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors"
         >
           <Plus className="h-4 w-4" /> Nueva Solicitud
         </button>
@@ -127,14 +127,14 @@ export default function LoanApplicationsPage() {
 
       {/* Totales financieros */}
       {stats && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 sm:p-4">
             <p className="text-xs text-blue-500 font-semibold uppercase">Total solicitado</p>
-            <p className="text-2xl font-black text-blue-700 mt-1">{fmt(stats.total_requested)}</p>
+            <p className="text-lg sm:text-2xl font-black text-blue-700 mt-1 truncate" title={fmt(stats.total_requested)}>{fmt(stats.total_requested)}</p>
           </div>
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-4">
             <p className="text-xs text-emerald-500 font-semibold uppercase">Total aprobado</p>
-            <p className="text-2xl font-black text-emerald-700 mt-1">{fmt(stats.total_approved)}</p>
+            <p className="text-lg sm:text-2xl font-black text-emerald-700 mt-1 truncate" title={fmt(stats.total_approved)}>{fmt(stats.total_approved)}</p>
           </div>
         </div>
       )}
@@ -183,7 +183,59 @@ export default function LoanApplicationsPage() {
         ) : applications.length === 0 ? (
           <EmptyState onNew={() => setShowForm(true)} filtered={!!(statusFilter || search)} />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Cards mobile */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {applications.map(app => {
+                const meta = STATUS_META[app.status]
+                return (
+                  <div key={app.id}
+                    onClick={() => openDetail(app)}
+                    className="p-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 truncate">{app.customer_name}</p>
+                        <p className="font-mono text-xs text-gray-500">{app.application_number}</p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${meta.color}`}>
+                        {meta.icon}{meta.label}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
+                      <div>
+                        <p className="text-gray-400">Solicita</p>
+                        <p className="font-semibold text-gray-900 truncate">{fmt(app.requested_amount)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Cuota est.</p>
+                        <p className="font-semibold text-gray-700 truncate">{fmt(app.monthly_payment_estimate)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-2 text-[11px] text-gray-500">
+                      <span>{app.product_name} · {app.requested_term_months}m</span>
+                      <span>{fmtDate(app.submitted_at || app.created_at)}</span>
+                    </div>
+                    {(app.debt_to_income_ratio != null || app.risk_level) && (
+                      <div className="flex items-center gap-2 mt-2 text-[10px]">
+                        {app.debt_to_income_ratio != null && (
+                          <span className={`px-1.5 py-0.5 rounded-full font-semibold ${Number(app.debt_to_income_ratio) > 50 ? 'bg-red-50 text-red-600' : Number(app.debt_to_income_ratio) > 35 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            DTI {Number(app.debt_to_income_ratio).toFixed(1)}%
+                          </span>
+                        )}
+                        {app.risk_level && (
+                          <span className={`px-1.5 py-0.5 rounded-full font-semibold ${RISK_COLORS[app.risk_level] || 'text-gray-400'} bg-gray-50`}>
+                            Riesgo {app.risk_level === 'LOW' ? 'Bajo' : app.risk_level === 'MEDIUM' ? 'Medio' : 'Alto'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Tabla desktop */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -259,12 +311,13 @@ export default function LoanApplicationsPage() {
                 })}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-sm text-gray-500">Página {page} de {totalPages} · {totalCount} solicitudes</p>
+            <p className="text-xs sm:text-sm text-gray-500">Página {page} de {totalPages} · {totalCount} solicitudes</p>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                 <ChevronLeft className="h-4 w-4" />

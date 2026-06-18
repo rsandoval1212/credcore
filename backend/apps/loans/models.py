@@ -47,6 +47,16 @@ class Loan(BaseModel):
     late_fee_rate = models.DecimalField(max_digits=6, decimal_places=3, default=0)
     commission_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
+    # Modalidad semanal: "13 semanas, 10 paga el cliente, 3 del prestamista"
+    total_installments = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text='Total de cuotas (ej: 13 semanas)',
+    )
+    client_installments = models.PositiveSmallIntegerField(
+        null=True, blank=True,
+        help_text='Cuotas que cubren el capital (ej: 10 de 13)',
+    )
+
     # Totales calculados al desembolso
     monthly_payment = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     total_interest  = models.DecimalField(max_digits=15, decimal_places=2, default=0)
@@ -78,6 +88,7 @@ class Loan(BaseModel):
         on_delete=models.SET_NULL, related_name='refinanced_loans'
     )
 
+    is_confidential = models.BooleanField(default=False, help_text='Préstamo rápido confidencial (solo admin)')
     notes = models.TextField(blank=True)
     # Firma digital del cliente (base64 del canvas de firma)
     client_signature = models.TextField(blank=True, help_text='Firma digital del cliente en formato base64 PNG')
@@ -88,6 +99,16 @@ class Loan(BaseModel):
         verbose_name = 'Préstamo'
         verbose_name_plural = 'Préstamos'
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(principal_amount__gt=0),
+                name='loan_principal_positive',
+            ),
+            models.CheckConstraint(
+                check=models.Q(annual_interest_rate__gte=0),
+                name='loan_rate_non_negative',
+            ),
+        ]
         indexes = [
             models.Index(fields=['status', 'branch']),
             models.Index(fields=['customer', 'status']),

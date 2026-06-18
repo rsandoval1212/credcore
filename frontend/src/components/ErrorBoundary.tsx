@@ -31,14 +31,9 @@ export default class ErrorBoundary extends Component<Props, State> {
           <p className="text-sm text-gray-500 mb-6">
             Ha ocurrido un error inesperado en la aplicación. Puedes intentar recargar la página o volver al inicio.
           </p>
-          {this.state.error && (
-            <details className="mb-6 text-left">
-              <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">Detalles técnicos</summary>
-              <pre className="mt-2 p-3 bg-gray-50 rounded-lg text-xs text-red-600 overflow-auto max-h-32">
-                {this.state.error.message}
-              </pre>
-            </details>
-          )}
+          <p className="text-xs text-gray-400 mb-6">
+            Si el problema persiste, contacte al administrador del sistema.
+          </p>
           <div className="flex gap-3 justify-center">
             <button
               onClick={() => window.location.reload()}

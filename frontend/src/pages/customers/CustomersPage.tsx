@@ -89,14 +89,14 @@ export default function CustomersPage() {
   const handleSearch = (v: string) => { setSearch(v); setPage(1) }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-          <p className="text-sm text-gray-500 mt-1">{totalCount} clientes registrados</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Clientes</h1>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">{totalCount} clientes registrados</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <ExportButton
             endpoint="/api/v1/reports/export/customers/"
             label="Exportar Excel"
@@ -201,7 +201,50 @@ export default function CustomersPage() {
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            {/* Cards en mobile */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {customers.map(c => (
+                <div key={c.id}
+                  onClick={() => navigate(`/customers/${c.id}`)}
+                  className="p-3 cursor-pointer hover:bg-gray-50 active:bg-gray-100">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0 overflow-hidden">
+                      {c.photo
+                        ? <img src={c.photo} alt="" className="w-full h-full object-cover" />
+                        : <span className="text-primary-700 font-semibold text-sm">{c.full_name?.charAt(0)?.toUpperCase()}</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{c.full_name}</p>
+                          <p className="text-xs text-gray-400">{c.customer_code} · {c.id_number}</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[c.status]}`}>
+                            {c.status_display}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${RISK_COLORS[c.risk_level]}`}>
+                            {RISK_LABELS[c.risk_level]}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                        <span className="flex items-center gap-1 truncate"><Phone className="h-3 w-3 shrink-0" />{c.phone1}</span>
+                        {c.credit_score != null && <span className="ml-auto font-semibold text-gray-700">Score: {c.credit_score}</span>}
+                      </div>
+                      <div className="mt-2 flex items-center justify-between text-xs">
+                        <span className="text-gray-500"><strong className="text-gray-900">{c.active_loans_count}</strong> activos</span>
+                        <span className="text-gray-500">Saldo: <strong className="text-gray-900">{fmt(c.outstanding_balance)}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Tabla desktop */}
+            <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
@@ -280,12 +323,13 @@ export default function CustomersPage() {
                 ))}
               </tbody>
             </table>
-          </div>
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-sm text-gray-500">Página {page} de {totalPages} · {totalCount} clientes</p>
+            <p className="text-xs sm:text-sm text-gray-500">Página {page} de {totalPages} · {totalCount} clientes</p>
             <div className="flex gap-2">
               <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
                 <ChevronLeft className="h-4 w-4" />

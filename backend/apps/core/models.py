@@ -61,6 +61,14 @@ class BaseModel(UUIDModel, TimeStampedModel, SoftDeleteModel):
         abstract = True
         ordering = ['-created_at']
 
+    def save(self, **kwargs):
+        if not self._state.adding:
+            from apps.core.audit_middleware import get_current_user
+            current = get_current_user()
+            if current:
+                self.updated_by = current
+        super().save(**kwargs)
+
 
 class CompanySettings(models.Model):
     """Configuración global de la institución prestamista (singleton)."""
