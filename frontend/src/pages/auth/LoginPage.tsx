@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import {
   Loader2, Mail, Lock, Eye, EyeOff, ShieldCheck,
-  TrendingUp, Wallet, BarChart3, KeyRound,
+  TrendingUp, Wallet, BarChart3, KeyRound, X,
 } from 'lucide-react'
 import { authService } from '@/services/auth'
 import { useAuthStore } from '@/store/slices/authStore'
+import api from '@/services/api'
 import toast from 'react-hot-toast'
 import logo from '@/assets/logo.png'
 
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [requires2FA, setRequires2FA] = useState(false)
   const [showPass, setShowPass] = useState(false)
+  const [showRecovery, setShowRecovery] = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>()
 
@@ -204,10 +206,77 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <div className="text-center mt-4">
+            <button onClick={() => setShowRecovery(true)} type="button"
+              className="text-xs text-slate-400 hover:text-primary-600 underline">
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
+
           {/* Pie */}
           <p className="text-center text-xs text-slate-400 mt-8">
             CredCore v1.0.0 · © {new Date().getFullYear()} · Desarrollado por Ronny Sandoval
           </p>
+        </div>
+      </div>
+      {showRecovery && <RecoveryModal onClose={() => setShowRecovery(false)} />}
+    </div>
+  )
+}
+
+function RecoveryModal({ onClose }: { onClose: () => void }) {
+  const [licenseKey, setLicenseKey] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const submit = async () => {
+    if (!licenseKey.trim() || !newPassword) { toast.error('Completa todos los campos'); return }
+    if (newPassword.length < 8) { toast.error('La contraseña debe tener al menos 8 caracteres'); return }
+    setLoading(true)
+    try {
+      const r = await api.post<{ detail: string }>('/system/admin-recovery/', {
+        license_key: licenseKey.trim(),
+        new_password: newPassword,
+      })
+      toast.success(r.data.detail, { duration: 6000 })
+      onClose()
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string | string[] } } }
+      const d = err.response?.data?.detail
+      toast.error(Array.isArray(d) ? d.join(' ') : d || 'Error en la recuperación')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900">Recuperar contraseña de administrador</h3>
+          <button onClick={onClose}><X className="h-5 w-5 text-gray-400" /></button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+            Esta opción restablece la contraseña del primer administrador del sistema usando la clave de licencia instalada en esta computadora.
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Clave de licencia</label>
+            <textarea value={licenseKey} onChange={e => setLicenseKey(e.target.value)} rows={3}
+              placeholder="Pega aquí tu clave de licencia completa..."
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Nueva contraseña</label>
+            <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+              placeholder="Mínimo 8 caracteres"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm" />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium hover:bg-gray-50">Cancelar</button>
+            <button onClick={submit} disabled={loading}
+              className="flex-1 px-4 py-2.5 bg-primary-600 text-white rounded-xl text-sm font-semibold hover:bg-primary-700 disabled:opacity-60">
+              {loading ? 'Restableciendo...' : 'Restablecer'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

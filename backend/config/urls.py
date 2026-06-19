@@ -100,6 +100,65 @@ def drive_test(request):
         return JsonResponse({'success': False, 'message': str(e)[:200]}, status=400)
 
 
+from rest_framework.permissions import AllowAny as _AllowAny
+
+
+@api_view(['POST'])
+@permission_classes([_AllowAny])
+def admin_password_recovery(request):
+    """Recupera la contraseña del superuser usando la clave de licencia activa.
+
+    Body: { license_key: str, new_password: str }
+    Solo permite resetear si la clave coincide con la licencia activa de la máquina.
+    """
+    import os
+    from pathlib import Path
+    from django.contrib.auth.password_validation import validate_password
+    from django.core.exceptions import ValidationError as DjangoValidationError
+
+    license_key = (request.data.get('license_key') or '').strip()
+    new_password = request.data.get('new_password') or ''
+
+    if not license_key or not new_password:
+        return JsonResponse({'detail': 'Clave de licencia y nueva contraseña son requeridas.'}, status=400)
+
+    # Verificar que la clave coincide con la licencia instalada
+    backups_dir = os.environ.get('BACKUPS_DIR', '')
+    data_dir = Path(backups_dir).parent if backups_dir else Path(os.environ.get('APPDATA', str(Path.home()))) / 'CredCore'
+    license_file = data_dir / 'license.dat'
+
+    if not license_file.exists():
+        return JsonResponse({'detail': 'No hay licencia instalada en esta máquina.'}, status=400)
+
+    try:
+        installed = license_file.read_text(encoding='utf-8').strip()
+    except Exception:
+        return JsonResponse({'detail': 'No se pudo leer la licencia.'}, status=400)
+
+    if license_key != installed:
+        return JsonResponse({'detail': 'Clave de licencia incorrecta.'}, status=403)
+
+    from apps.users.models import User as UserModel
+    admin = UserModel.objects.filter(is_superuser=True).order_by('date_joined').first()
+    if not admin:
+        return JsonResponse({'detail': 'No hay administrador en el sistema.'}, status=400)
+
+    try:
+        validate_password(new_password, admin)
+    except DjangoValidationError as e:
+        return JsonResponse({'detail': list(e.messages)}, status=400)
+
+    admin.set_password(new_password)
+    admin.failed_login_attempts = 0
+    admin.locked_until = None
+    admin.save()
+
+    import logging
+    logging.getLogger('credcore.audit').warning(f"[ADMIN_RECOVERY] password reset for {admin.email}")
+
+    return JsonResponse({'success': True, 'detail': f'Contraseña de {admin.email} restablecida.'})
+
+
 @api_view(['GET', 'PUT'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -286,6 +345,7 @@ urlpatterns = [
     path(f'{API}system/backup-destinations/', backup_destinations, name='backup-destinations'),
     path(f'{API}system/drive-config/', drive_config, name='drive-config'),
     path(f'{API}system/drive-test/', drive_test, name='drive-test'),
+    path(f'{API}system/admin-recovery/', admin_password_recovery, name='admin-recovery'),
 
     # Auth & Users
     path(f'{API}auth/', include('apps.users.urls')),

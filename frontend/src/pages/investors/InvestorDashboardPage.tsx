@@ -99,6 +99,36 @@ export default function InvestorDashboardPage() {
         <KPI label="Total Recuperado" value={fmt(k.total_collected)} icon={Target} color="text-blue-600" sublabel={`Capital: ${fmt(k.total_principal_recovered)}`} />
       </div>
 
+      {/* Resumen de ganancia recuperada */}
+      <div className="bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-200 p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Coins className="h-5 w-5 text-emerald-700" />
+          <h2 className="font-bold text-gray-900 text-sm">Ganancia recuperada (lo cobrado hasta ahora)</h2>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl p-4 border border-emerald-100">
+            <p className="text-xs text-gray-500 mb-1">Hoy</p>
+            <p className="text-lg font-bold text-emerald-700">{fmt(k.today_interest || 0)}</p>
+            <p className="text-xs text-gray-400 mt-1">Capital: {fmt(k.today_principal_recovered || 0)}</p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-emerald-100">
+            <p className="text-xs text-gray-500 mb-1">Este mes</p>
+            <p className="text-lg font-bold text-emerald-700">{fmt(k.month_interest)}</p>
+            <p className="text-xs text-gray-400 mt-1">Cobrado: {fmt(k.month_collected)}</p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-emerald-100">
+            <p className="text-xs text-gray-500 mb-1">Este año</p>
+            <p className="text-lg font-bold text-emerald-700">{fmt(k.year_interest)}</p>
+            <p className="text-xs text-gray-400 mt-1">Cobrado: {fmt(k.year_collected)}</p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-emerald-200">
+            <p className="text-xs text-gray-500 mb-1">Total histórico</p>
+            <p className="text-lg font-bold text-emerald-800">{fmt(k.total_interest_earned)}</p>
+            <p className="text-xs text-gray-400 mt-1">ROI: {pct(k.roi_total_pct)}</p>
+          </div>
+        </div>
+      </div>
+
       {/* Rendimiento por sucursal */}
       {data.branches.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">

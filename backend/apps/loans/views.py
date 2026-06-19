@@ -364,7 +364,40 @@ class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelVie
         pmts = Payment.objects.filter(loan=loan).order_by('-payment_date')
         return Response(PaymentSerializer(pmts, many=True).data)
 
-    # ── Gestión de mora (solo admins/staff) ───────────────────────────────────
+    # Admin agrega mora manualmente a un préstamo o cuota atrasada
+    @action(detail=True, methods=['post'], url_path='add-late-fee')
+    def add_late_fee(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.is_staff):
+            return Response({'detail': 'Solo administradores pueden agregar mora.'}, status=403)
+        loan = self.get_object()
+        try:
+            amount = Decimal(str(request.data.get('amount', 0))).quantize(Decimal('0.01'))
+        except Exception:
+            return Response({'detail': 'Monto inválido.'}, status=400)
+        if amount <= 0:
+            return Response({'detail': 'El monto debe ser mayor a cero.'}, status=400)
+
+        reason = (request.data.get('reason') or 'Mora agregada manualmente').strip()
+        installment_number = request.data.get('installment_number')
+
+        with transaction.atomic():
+            loan_locked = Loan.objects.select_for_update().get(pk=loan.pk)
+            loan_locked.outstanding_late_fees = Decimal(str(loan_locked.outstanding_late_fees)) + amount
+
+            if installment_number:
+                try:
+                    sched = loan_locked.schedule.get(installment_number=int(installment_number))
+                    sched.late_fee_amount = Decimal(str(sched.late_fee_amount or 0)) + amount
+                    sched.total_amount = Decimal(str(sched.total_amount)) + amount
+                    sched.save(update_fields=['late_fee_amount', 'total_amount'])
+                except Exception:
+                    pass
+
+            loan_locked.notes = f"[MORA +{amount} por {request.user.email}: {reason}]\n{loan_locked.notes or ''}"
+            loan_locked.save(update_fields=['outstanding_late_fees', 'notes'])
+
+        return Response(LoanDetailSerializer(loan_locked).data)
+
     @action(detail=True, methods=['post'])
     def waive_late_fees(self, request, pk=None):
         """

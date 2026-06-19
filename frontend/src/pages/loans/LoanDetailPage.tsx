@@ -73,7 +73,7 @@ export default function LoanDetailPage() {
   const [showSignature, setShowSignature]   = useState(false)
   // Mora
   const [showMora, setShowMora]             = useState(false)
-  const [moraAction, setMoraAction]         = useState<'waive' | 'rate'>('waive')
+  const [moraAction, setMoraAction]         = useState<'waive' | 'rate' | 'add'>('waive')
   const [moraAmount, setMoraAmount]         = useState('')
   const [moraRate, setMoraRate]             = useState('')
   const [moraReason, setMoraReason]         = useState('')
@@ -173,6 +173,13 @@ export default function LoanDetailPage() {
           reason: moraReason || 'Gracia otorgada por administrador',
         })
         toast.success(r.data.detail, { icon: '✅' })
+      } else if (moraAction === 'add') {
+        if (!moraAmount || parseFloat(moraAmount) <= 0) { toast.error('Ingresa un monto'); return }
+        await api.post(`/loans/${id}/add-late-fee/`, {
+          amount: parseFloat(moraAmount),
+          reason: moraReason || 'Mora aplicada manualmente',
+        })
+        toast.success(`Mora de RD$${moraAmount} agregada`, { icon: '⚠️' })
       } else {
         const r = await api.post(`/loans/${id}/adjust_late_fee_rate/`, {
           new_rate: parseFloat(moraRate),
@@ -187,7 +194,7 @@ export default function LoanDetailPage() {
     } finally { setActionLoading(false) }
   }
 
-  const handleMora = (action: 'waive' | 'rate') => {
+  const handleMora = (action: 'waive' | 'rate' | 'add') => {
     setMoraAction(action)
     setShowMora(true)
     if (!isAdmin) {
@@ -301,6 +308,13 @@ export default function LoanDetailPage() {
                 <ShieldOff className="h-4 w-4" /> Condonar mora
               </button>
             )}
+            {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && isAdmin && (
+              <button onClick={() => handleMora('add')}
+                title="Agregar mora manualmente"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-700 bg-red-50 rounded-lg hover:bg-red-100">
+                <AlertTriangle className="h-4 w-4" /> Agregar mora
+              </button>
+            )}
             {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && (
               <button onClick={() => handleMora('rate')}
                 title="Ajustar tasa de mora"
@@ -337,12 +351,12 @@ export default function LoanDetailPage() {
         {showMora && (
           <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-3">
             <p className="text-sm font-semibold text-amber-800">
-              {moraAction === 'waive' ? '🛡️ Condonar mora' : '📊 Ajustar tasa de mora'}
+              {moraAction === 'waive' ? '🛡️ Condonar mora' : moraAction === 'add' ? '⚠️ Agregar mora manualmente' : '📊 Ajustar tasa de mora'}
             </p>
             <div className="flex gap-3 flex-wrap">
-              {moraAction === 'waive' ? (
+              {(moraAction === 'waive' || moraAction === 'add') ? (
                 <input value={moraAmount} onChange={e => setMoraAmount(e.target.value)}
-                  type="number" min="0" placeholder="Monto a condonar (vacío = todo)"
+                  type="number" min="0" placeholder={moraAction === 'add' ? 'Monto de mora a agregar' : 'Monto a condonar (vacío = todo)'}
                   className="flex-1 min-w-[160px] px-3 py-2 border border-amber-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white" />
               ) : (
                 <input value={moraRate} onChange={e => setMoraRate(e.target.value)}

@@ -26,3 +26,19 @@ class PaymentCreateSerializer(serializers.ModelSerializer):
             'reference_number', 'bank_name', 'check_number',
             'payment_date', 'cash_session', 'notes', 'installments',
         ]
+
+    def to_internal_value(self, data):
+        """Redondea automáticamente montos a 2 decimales para evitar errores
+        cuando el frontend envía resultados de cálculos JS con más precisión."""
+        from decimal import Decimal, ROUND_HALF_UP
+        if hasattr(data, 'copy'):
+            data = data.copy()
+        for field in ('total_amount', 'principal_amount', 'interest_amount',
+                      'late_fee_amount', 'commission_amount'):
+            v = data.get(field)
+            if v not in (None, ''):
+                try:
+                    data[field] = str(Decimal(str(v)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+                except Exception:
+                    pass
+        return super().to_internal_value(data)

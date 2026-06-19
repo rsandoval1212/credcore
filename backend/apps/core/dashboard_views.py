@@ -1186,11 +1186,13 @@ class InvestorDashboardView(APIView):
         expected_interest_pending = f(active.aggregate(t=Sum('outstanding_interest'))['t'])
         expected_total_profit = total_interest + expected_interest_pending
 
-        # Cobros del año y mes
+        # Cobros del año, mes y día
         year_collected  = f(pays_qs.filter(payment_date__gte=year_start).aggregate(t=Sum('total_amount'))['t'])
         year_interest   = f(pays_qs.filter(payment_date__gte=year_start).aggregate(t=Sum('interest_amount'))['t'])
         month_collected = f(pays_qs.filter(payment_date__gte=month_start).aggregate(t=Sum('total_amount'))['t'])
         month_interest  = f(pays_qs.filter(payment_date__gte=month_start).aggregate(t=Sum('interest_amount'))['t'])
+        today_interest  = f(pays_qs.filter(payment_date=today).aggregate(t=Sum('interest_amount'))['t'])
+        today_principal_recovered = f(pays_qs.filter(payment_date=today).aggregate(t=Sum('principal_amount'))['t'])
 
         # ROI = (interés cobrado / capital desembolsado) * 100
         roi_total = round(total_interest / total_disbursed * 100, 2) if total_disbursed > 0 else 0
@@ -1250,6 +1252,8 @@ class InvestorDashboardView(APIView):
                 'year_collected':          year_collected,
                 'month_interest':          month_interest,
                 'month_collected':         month_collected,
+                'today_interest':          today_interest,
+                'today_principal_recovered': today_principal_recovered,
                 'avg_monthly_projection':  round(avg_monthly, 2),
             },
             'branches': branches,
