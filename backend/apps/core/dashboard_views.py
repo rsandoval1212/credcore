@@ -647,16 +647,9 @@ class PaymentRecurrenceAnalysisView(APIView):
 
 class CompanySettingsView(APIView):
     """GET/PATCH la configuración global de la empresa."""
+    from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
     permission_classes = [IsAuthenticated]
-    parser_classes = []  # se asignan dinámicamente
-
-    def get_parsers(self):
-        from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-        return [JSONParser(), MultiPartParser(), FormParser()]
-
-    @property
-    def parser_classes_resolved(self):
-        return self.get_parsers()
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
         from apps.core.models import CompanySettings
@@ -1189,6 +1182,10 @@ class InvestorDashboardView(APIView):
         total_interest  = f(pays_qs.aggregate(t=Sum('interest_amount'))['t'])
         total_principal_back = f(pays_qs.aggregate(t=Sum('principal_amount'))['t'])
 
+        # Ganancia esperada por préstamos activos (intereses aún por cobrar)
+        expected_interest_pending = f(active.aggregate(t=Sum('outstanding_interest'))['t'])
+        expected_total_profit = total_interest + expected_interest_pending
+
         # Cobros del año y mes
         year_collected  = f(pays_qs.filter(payment_date__gte=year_start).aggregate(t=Sum('total_amount'))['t'])
         year_interest   = f(pays_qs.filter(payment_date__gte=year_start).aggregate(t=Sum('interest_amount'))['t'])
@@ -1240,6 +1237,8 @@ class InvestorDashboardView(APIView):
                 'total_portfolio':         total_portfolio,
                 'total_collected':         total_collected,
                 'total_interest_earned':   total_interest,
+                'expected_interest_pending': expected_interest_pending,
+                'expected_total_profit':   expected_total_profit,
                 'total_principal_recovered': total_principal_back,
                 'roi_total_pct':           roi_total,
                 'roi_year_pct':            roi_year,

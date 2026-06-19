@@ -237,3 +237,64 @@ class PaymentViewSet(SoftDeleteViewSetMixin, viewsets.ModelViewSet):
         payment.save(update_fields=['status', 'notes'])
 
         return Response(PaymentSerializer(payment).data)
+
+    # Admin: editar un pago ya confirmado (rebalancea el préstamo)
+    @transaction.atomic
+    @action(detail=True, methods=['patch'], url_path='admin-edit')
+    def admin_edit(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.is_staff):
+            return Response({'detail': 'Solo administradores pueden editar pagos confirmados.'}, status=403)
+
+        payment = self.get_object()
+        if payment.status == 'CANCELLED':
+            return Response({'detail': 'No se puede editar un pago cancelado.'}, status=400)
+
+        from apps.loans.models import Loan
+        loan = Loan.objects.select_for_update().get(pk=payment.loan_id)
+
+        # 1) Revertir totales del préstamo según el pago original
+        loan.total_paid = max(Decimal('0'), Decimal(str(loan.total_paid)) - Decimal(str(payment.total_amount)))
+        loan.outstanding_principal = Decimal(str(loan.outstanding_principal)) + Decimal(str(payment.principal_amount))
+        loan.outstanding_interest = Decimal(str(loan.outstanding_interest)) + Decimal(str(payment.interest_amount))
+        loan.outstanding_late_fees = Decimal(str(loan.outstanding_late_fees)) + Decimal(str(payment.late_fee_amount))
+        if loan.status == 'COMPLETED':
+            loan.status = 'ACTIVE'
+            loan.completed_at = None
+
+        # 2) Revertir cuotas que fueron pagadas por este pago
+        remaining = Decimal(str(payment.total_amount))
+        paid_installments = loan.schedule.filter(
+            paid_date=payment.payment_date, status__in=['PAID', 'PARTIAL']
+        ).order_by('-installment_number')
+        for inst in paid_installments:
+            if remaining <= 0:
+                break
+            revert = min(remaining, Decimal(str(inst.total_paid)))
+            inst.total_paid = max(Decimal('0'), Decimal(str(inst.total_paid)) - revert)
+            inst.status = 'PENDING' if inst.total_paid == 0 else 'PARTIAL'
+            if inst.total_paid == 0:
+                inst.paid_date = None
+            inst.save(update_fields=['total_paid', 'status', 'paid_date'])
+            remaining -= revert
+
+        # 3) Aplicar los nuevos valores al pago
+        editable = {
+            'total_amount', 'principal_amount', 'interest_amount', 'late_fee_amount',
+            'payment_method', 'payment_date', 'notes', 'reference_number',
+        }
+        for field in editable:
+            if field in request.data:
+                setattr(payment, field, request.data[field])
+
+        # Validar montos no negativos
+        if Decimal(str(payment.total_amount)) <= 0:
+            raise ValidationError({'total_amount': 'El monto debe ser mayor a cero.'})
+
+        payment.notes = f"[EDITADO POR ADMIN {request.user.email}]\n{payment.notes or ''}"
+        payment.save()
+
+        # 4) Re-aplicar el pago al préstamo con los valores nuevos
+        loan = Loan.objects.select_for_update().get(pk=loan.pk)
+        self._apply_payment_to_loan(payment, loan)
+
+        return Response(PaymentSerializer(payment).data)

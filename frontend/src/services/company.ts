@@ -59,9 +59,7 @@ export const companyService = {
   uploadLogo: (file: File) => {
     const fd = new FormData()
     fd.append('logo', file)
-    return api.patch<CompanySettings>('/dashboard/company/', fd, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    return api.patch<CompanySettings>('/dashboard/company/', fd)
   },
 }
 

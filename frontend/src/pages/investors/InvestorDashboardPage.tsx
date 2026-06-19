@@ -80,17 +80,23 @@ export default function InvestorDashboardPage() {
       {/* KPIs principales */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPI label="Capital Invertido Total" value={fmt(k.total_capital_invested)} icon={DollarSign} color="text-blue-700" sublabel="Desde el inicio" />
-        <KPI label="Intereses Ganados" value={fmt(k.total_interest_earned)} icon={Coins} color="text-emerald-700" sublabel={`ROI total: ${pct(k.roi_total_pct)}`} />
-        <KPI label="ROI del Año" value={pct(k.roi_year_pct)} icon={TrendingUp} color="text-purple-700" sublabel={`Intereses: ${fmt(k.year_interest)}`} />
-        <KPI label="Tasa de Morosidad" value={pct(k.delinquency_pct)} icon={AlertTriangle} color={k.delinquency_pct > 10 ? 'text-red-700' : 'text-emerald-700'} sublabel={`Mora: ${fmt(k.overdue_amount)}`} />
+        <KPI label="Ganancia Cobrada" value={fmt(k.total_interest_earned)} icon={Coins} color="text-emerald-700" sublabel={`ROI total: ${pct(k.roi_total_pct)}`} />
+        <KPI label="Ganancia Por Cobrar" value={fmt(k.expected_interest_pending)} icon={TrendingUp} color="text-amber-700" sublabel="Intereses pendientes en activos" />
+        <KPI label="Ganancia Total Esperada" value={fmt(k.expected_total_profit)} icon={Target} color="text-purple-700" sublabel="Cobrada + por cobrar" />
       </div>
 
-      {/* Segunda fila */}
+      {/* KPIs secundarios */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPI label="Portafolio Activo" value={fmt(k.total_portfolio)} icon={CreditCard} color="text-gray-900" sublabel={`${k.active_loans} préstamos`} />
-        <KPI label="Total Recuperado" value={fmt(k.total_collected)} icon={Target} color="text-blue-600" sublabel={`Capital: ${fmt(k.total_principal_recovered)}`} />
+        <KPI label="ROI del Año" value={pct(k.roi_year_pct)} icon={TrendingUp} color="text-purple-700" sublabel={`Intereses: ${fmt(k.year_interest)}`} />
+        <KPI label="Tasa de Morosidad" value={pct(k.delinquency_pct)} icon={AlertTriangle} color={k.delinquency_pct > 10 ? 'text-red-700' : 'text-emerald-700'} sublabel={`Mora: ${fmt(k.overdue_amount)}`} />
         <KPI label="Cobros del Mes" value={fmt(k.month_collected)} icon={BarChart3} color="text-indigo-700" sublabel={`Intereses: ${fmt(k.month_interest)}`} />
         <KPI label="Proyección Mensual" value={fmt(k.avg_monthly_projection)} icon={Percent} color="text-amber-700" sublabel="Promedio últimos 3 meses" />
+      </div>
+
+      {/* Tercera fila — portafolio */}
+      <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
+        <KPI label="Portafolio Activo" value={fmt(k.total_portfolio)} icon={CreditCard} color="text-gray-900" sublabel={`${k.active_loans} préstamos`} />
+        <KPI label="Total Recuperado" value={fmt(k.total_collected)} icon={Target} color="text-blue-600" sublabel={`Capital: ${fmt(k.total_principal_recovered)}`} />
       </div>
 
       {/* Rendimiento por sucursal */}
