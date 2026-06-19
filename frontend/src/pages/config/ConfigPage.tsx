@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Settings, Building2, Save, Upload, Image as ImageIcon,
   Database, Clock, CheckCircle, AlertTriangle, Play, RefreshCw, HardDrive,
-  Download, RotateCcw, ShieldAlert, FolderOpen, Headset, Activity,
+  Download, RotateCcw, ShieldAlert, FolderOpen, Headset, Activity, FileJson,
   Phone, Mail, MessageCircle, Instagram, ExternalLink, Code2, Heart,
 } from 'lucide-react'
 import {
@@ -14,12 +14,13 @@ import { saveBlob } from '@/utils/download'
 import BackupDestinations from './BackupDestinations'
 import DriveBackupConfig from './DriveBackupConfig'
 import AuditLogPage from './AuditLogPage'
+import BulkSyncImport from './BulkSyncImport'
 import toast from 'react-hot-toast'
 
 const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
 
 export default function ConfigPage() {
-  const [tab, setTab] = useState<'company' | 'backup' | 'audit' | 'support'>('company')
+  const [tab, setTab] = useState<'company' | 'backup' | 'sync' | 'audit' | 'support'>('company')
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -33,6 +34,7 @@ export default function ConfigPage() {
         {[
           { id: 'company', label: 'Empresa', icon: Building2 },
           { id: 'backup',  label: 'Copias de Seguridad', icon: Database },
+          { id: 'sync',    label: 'Importar Datos', icon: FileJson },
           { id: 'audit',   label: 'Actividad', icon: Activity },
           { id: 'support', label: 'Soporte', icon: Headset },
         ].map(t => {
@@ -48,6 +50,7 @@ export default function ConfigPage() {
 
       {tab === 'company' && <CompanyTab />}
       {tab === 'backup'  && <BackupTab />}
+      {tab === 'sync'    && <BulkSyncImport />}
       {tab === 'audit'   && <AuditLogPage />}
       {tab === 'support' && <SupportTab />}
     </div>

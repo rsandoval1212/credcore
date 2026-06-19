@@ -383,6 +383,8 @@ urlpatterns = [
     path(f'{API}system/drive-test/', drive_test, name='drive-test'),
     path(f'{API}system/admin-recovery/', admin_password_recovery, name='admin-recovery'),
     path(f'{API}system/audit-log/', audit_log_list, name='audit-log'),
+    path(f'{API}system/bulk-sync/preview/', __import__('apps.core.bulk_sync_views', fromlist=['BulkSyncPreviewView']).BulkSyncPreviewView.as_view(), name='bulk-sync-preview'),
+    path(f'{API}system/bulk-sync/import/', __import__('apps.core.bulk_sync_views', fromlist=['BulkSyncImportView']).BulkSyncImportView.as_view(), name='bulk-sync-import'),
 
     # Auth & Users
     path(f'{API}auth/', include('apps.users.urls')),
