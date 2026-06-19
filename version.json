@@ -1,1 +1,1 @@
-{"version":"1.1.4","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.4-Setup.exe","notes":"Auto-config de actualizaciones + fix subida de logo de empresa + admin puede editar cobros + reporte general muestra ganancia cobrada y por cobrar."}
+{"version":"1.1.5","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.5-Setup.exe","notes":"UI para editar cobros (admin) + UI para configurar Google Drive desde Configuración (subir cuenta de servicio + probar conexión)."}

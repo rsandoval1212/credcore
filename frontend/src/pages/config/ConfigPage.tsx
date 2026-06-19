@@ -12,6 +12,7 @@ import {
 import api from '@/services/api'
 import { saveBlob } from '@/utils/download'
 import BackupDestinations from './BackupDestinations'
+import DriveBackupConfig from './DriveBackupConfig'
 import toast from 'react-hot-toast'
 
 const inputCls = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500'
@@ -304,6 +305,9 @@ function BackupTab() {
     <div className="space-y-6">
       {/* Destinos automáticos de respaldo (USB / Drive Desktop / Carpeta) */}
       <BackupDestinations />
+
+      {/* Configuración de Google Drive (cuenta de servicio + folder ID) */}
+      <DriveBackupConfig />
 
       {/* ── Acciones principales ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

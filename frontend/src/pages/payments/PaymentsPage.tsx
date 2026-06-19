@@ -3,13 +3,15 @@ import ExportButton from '@/components/ui/ExportButton'
 import {
   DollarSign, Search, RefreshCw, Filter, Plus,
   ChevronLeft, ChevronRight, CheckCircle,
-  Banknote, CreditCard, Building2, Clock,
+  Banknote, CreditCard, Building2, Clock, Edit3,
 } from 'lucide-react'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
 import PaymentFormModal from './PaymentFormModal'
+import PaymentEditModal from './PaymentEditModal'
 import ReceiptWhatsAppButton from '@/components/notifications/ReceiptWhatsAppButton'
+import { useAuthStore } from '@/store/slices/authStore'
 
 interface Payment {
   id: string; payment_number: string; receipt_number: string
@@ -50,6 +52,9 @@ export default function PaymentsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<Payment | null>(null)
+  const user = useAuthStore(s => s.user)
+  const isAdmin = !!(user?.is_superuser || user?.is_staff)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -169,6 +174,12 @@ export default function PaymentsPage() {
                           variant="ghost"
                           className="p-1.5 border border-gray-200 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50"
                         />
+                        {isAdmin && p.status !== 'CANCELLED' && (
+                          <button onClick={() => setEditing(p)} title="Editar cobro (Admin)"
+                            className="p-1.5 border border-gray-200 rounded-lg text-gray-500 hover:text-primary-600 hover:bg-primary-50">
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -188,6 +199,7 @@ export default function PaymentsPage() {
         )}
       </div>
       {showForm && <PaymentFormModal onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load(); loadStats() }} />}
+      {editing && <PaymentEditModal payment={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); loadStats() }} />}
     </div>
   )
 }

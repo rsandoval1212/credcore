@@ -18,6 +18,88 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
+@api_view(['GET', 'POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def drive_config(request):
+    """Configuración de Google Drive para respaldos automáticos."""
+    import os, json
+    from pathlib import Path
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'detail': 'Solo administradores.'}, status=403)
+
+    backups_dir = os.environ.get('BACKUPS_DIR', '')
+    data_dir = Path(backups_dir).parent if backups_dir else Path(os.environ.get('APPDATA', str(Path.home()))) / 'CredCore'
+    data_dir.mkdir(parents=True, exist_ok=True)
+    sa_file = data_dir / 'service_account.json'
+    fid_file = data_dir / 'drive_folder_id.txt'
+
+    if request.method == 'GET':
+        sa_email = None
+        if sa_file.exists():
+            try:
+                sa_email = json.loads(sa_file.read_text(encoding='utf-8')).get('client_email')
+            except Exception:
+                sa_email = '(archivo inválido)'
+        folder_id = fid_file.read_text(encoding='utf-8').strip() if fid_file.exists() else ''
+        return JsonResponse({
+            'configured': bool(sa_email and folder_id),
+            'service_account_email': sa_email,
+            'drive_folder_id': folder_id,
+        })
+
+    # POST: recibir el JSON y/o el folder_id
+    file = request.FILES.get('service_account')
+    folder_id = (request.data.get('drive_folder_id') or '').strip()
+    saved = []
+    if file:
+        try:
+            content = file.read().decode('utf-8')
+            parsed = json.loads(content)
+            if not parsed.get('client_email') or not parsed.get('private_key'):
+                return JsonResponse({'detail': 'JSON de cuenta de servicio inválido.'}, status=400)
+            sa_file.write_text(content, encoding='utf-8')
+            saved.append('service_account.json')
+        except Exception as e:
+            return JsonResponse({'detail': f'No se pudo guardar el JSON: {e}'}, status=400)
+    if folder_id:
+        fid_file.write_text(folder_id, encoding='utf-8')
+        saved.append('drive_folder_id.txt')
+    if not saved:
+        return JsonResponse({'detail': 'No se proporcionó nada para guardar.'}, status=400)
+    return JsonResponse({'success': True, 'saved': saved})
+
+
+@api_view(['POST'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def drive_test(request):
+    """Prueba la conexión a Google Drive intentando listar la carpeta."""
+    import os
+    from pathlib import Path
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'detail': 'Solo administradores.'}, status=403)
+
+    backups_dir = os.environ.get('BACKUPS_DIR', '')
+    data_dir = Path(backups_dir).parent if backups_dir else Path(os.environ.get('APPDATA', str(Path.home()))) / 'CredCore'
+    sa_file = data_dir / 'service_account.json'
+    fid_file = data_dir / 'drive_folder_id.txt'
+    if not sa_file.exists() or not fid_file.exists():
+        return JsonResponse({'success': False, 'message': 'Falta service_account.json o drive_folder_id.txt'}, status=400)
+
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+        scopes = ['https://www.googleapis.com/auth/drive.file']
+        creds = service_account.Credentials.from_service_account_file(str(sa_file), scopes=scopes)
+        svc = build('drive', 'v3', credentials=creds)
+        folder_id = fid_file.read_text(encoding='utf-8').strip()
+        meta = svc.files().get(fileId=folder_id, fields='id,name,owners').execute()
+        return JsonResponse({'success': True, 'folder_name': meta.get('name'), 'folder_id': meta.get('id')})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)[:200]}, status=400)
+
+
 @api_view(['GET', 'PUT'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -202,6 +284,8 @@ urlpatterns = [
 
     # Configuración de destinos de respaldo (carpetas / USBs)
     path(f'{API}system/backup-destinations/', backup_destinations, name='backup-destinations'),
+    path(f'{API}system/drive-config/', drive_config, name='drive-config'),
+    path(f'{API}system/drive-test/', drive_test, name='drive-test'),
 
     # Auth & Users
     path(f'{API}auth/', include('apps.users.urls')),
