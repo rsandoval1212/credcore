@@ -13,17 +13,34 @@ from pathlib import Path
 logger = logging.getLogger('credcore.backup')
 
 
+def get_backups_dir() -> str:
+    """Ruta escribible para guardar respaldos.
+
+    Prioridad:
+    1. BACKUPS_DIR env var (la setea credcore_app.py apuntando a %APPDATA%\\CredCore\\backups)
+    2. %APPDATA%\\CredCore\\backups (fallback Windows)
+    3. ~/.credcore/backups (fallback Linux/Mac)
+    """
+    env_dir = os.environ.get('BACKUPS_DIR', '').strip()
+    if env_dir:
+        return env_dir
+
+    appdata = os.environ.get('APPDATA', '')
+    if appdata:
+        return str(Path(appdata) / 'CredCore' / 'backups')
+
+    return str(Path.home() / '.credcore' / 'backups')
+
+
 def _get_encryption_key() -> bytes:
     """Obtiene o genera la clave de cifrado para backups."""
-    from django.conf import settings
-
     env_key = os.environ.get('BACKUP_ENCRYPTION_KEY', '')
     if env_key:
         # Derivar clave de 32 bytes del valor proporcionado
         return base64.urlsafe_b64encode(hashlib.sha256(env_key.encode()).digest())
 
-    # En desarrollo: generar y guardar clave local
-    key_path = Path(settings.BASE_DIR) / 'backups' / '.encryption_key'
+    # Usar la carpeta escribible de backups (no BASE_DIR que es read-only en Program Files)
+    key_path = Path(get_backups_dir()) / '.encryption_key'
     if key_path.exists():
         return key_path.read_bytes().strip()
 

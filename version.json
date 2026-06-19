@@ -1,1 +1,1 @@
-{"version":"1.1.5","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.5-Setup.exe","notes":"UI para editar cobros (admin) + UI para configurar Google Drive desde Configuración (subir cuenta de servicio + probar conexión)."}
+{"version":"1.1.6","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.6-Setup.exe","notes":"Hotfix crítico: respaldos manuales fallaban con ImportError porque get_backups_dir() nunca se había definido. También arregla la ruta de la clave de cifrado."}
