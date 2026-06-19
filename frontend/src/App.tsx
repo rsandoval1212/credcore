@@ -23,6 +23,8 @@ const LoanCalculatorPage    = lazy(() => import('@/pages/calculator/LoanCalculat
 const CollectionsPage       = lazy(() => import('@/pages/collections/CollectionsPage'))
 const InvestorDashboardPage = lazy(() => import('@/pages/investors/InvestorDashboardPage'))
 const CurrencyExchangePage  = lazy(() => import('@/pages/exchange/CurrencyExchangePage'))
+const CollectionCalendarPage = lazy(() => import('@/pages/calendar/CollectionCalendarPage'))
+const AuditLogPage          = lazy(() => import('@/pages/config/AuditLogPage'))
 
 /* ── Loading spinner ─────────────────────────────────────────────────────── */
 function PageLoader() {
@@ -64,6 +66,8 @@ export default function App() {
                       <Route path="/loans"              element={<LoansPage />} />
                       <Route path="/loans/:id"          element={<LoanDetailPage />} />
                       <Route path="/payments"           element={<PaymentsPage />} />
+                      <Route path="/calendar"           element={<CollectionCalendarPage />} />
+                      <Route path="/audit"              element={<AuditLogPage />} />
                       <Route path="/collections"        element={<CollectionsPage />} />
                       <Route path="/cash"               element={<CashPage />} />
                       <Route path="/guarantees"         element={<GuaranteesPage />} />

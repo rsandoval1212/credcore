@@ -65,6 +65,10 @@ export default function LoanDetailPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('resumen')
   const [showWriteOff, setShowWriteOff]   = useState(false)
+  const [showRenegotiate, setShowRenegotiate] = useState(false)
+  const [renegTerm, setRenegTerm] = useState('')
+  const [renegCuota, setRenegCuota] = useState('')
+  const [renegReason, setRenegReason] = useState('')
   const [writeOffReason, setWriteOffReason] = useState('')
   const [actionLoading, setActionLoading]   = useState(false)
   const [recurrence, setRecurrence]         = useState<RecurrenceAnalysis | null>(null)
@@ -160,6 +164,27 @@ export default function LoanDetailPage() {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  // Renegociar préstamo
+  const handleRenegotiate = async () => {
+    if (!id) return
+    const term = parseInt(renegTerm)
+    const cuota = parseFloat(renegCuota)
+    if (!term || term < 1) { toast.error('Plazo inválido'); return }
+    if (!cuota || cuota <= 0) { toast.error('Cuota inválida'); return }
+    setActionLoading(true)
+    try {
+      await api.post(`/loans/${id}/renegotiate/`, {
+        new_term_months: term, new_monthly_payment: cuota,
+        reason: renegReason || 'Renegociación solicitada',
+      })
+      toast.success('Préstamo renegociado y tabla regenerada', { icon: '✅' })
+      setShowRenegotiate(false); setRenegReason('')
+      load()
+    } catch (e) {
+      toast.error(extractApiError(e, 'Error renegociando'))
+    } finally { setActionLoading(false) }
   }
 
   // ── Condonar / ajustar mora ──────────────────────────────────────────────────
@@ -322,6 +347,17 @@ export default function LoanDetailPage() {
                 <Percent className="h-4 w-4" /> Tasa mora
               </button>
             )}
+            {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && isAdmin && (
+              <button onClick={() => {
+                setShowRenegotiate(true)
+                setRenegTerm(String(loan.term_months))
+                setRenegCuota(String(loan.monthly_payment))
+              }}
+                title="Renegociar plazo y cuota"
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-purple-200 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">
+                <RefreshCw className="h-4 w-4" /> Renegociar
+              </button>
+            )}
             {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && (
               <button onClick={() => setShowWriteOff(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
@@ -344,6 +380,41 @@ export default function LoanDetailPage() {
               {actionLoading ? 'Procesando...' : 'Confirmar'}
             </button>
             <button onClick={() => setShowWriteOff(false)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-white">Cancelar</button>
+          </div>
+        )}
+
+        {/* Panel de renegociación */}
+        {showRenegotiate && (
+          <div className="mt-3 p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-purple-900">🔄 Renegociar préstamo</p>
+              <p className="text-xs text-purple-700 mt-1">
+                Las cuotas pagadas se conservan. Las pendientes se regeneran con los nuevos términos.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-semibold text-purple-900">Nuevo plazo (meses)</label>
+                <input type="number" min="1" value={renegTerm} onChange={e => setRenegTerm(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-purple-200 rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-purple-900">Nueva cuota mensual (RD$)</label>
+                <input type="number" min="0" step="0.01" value={renegCuota} onChange={e => setRenegCuota(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-purple-200 rounded-lg text-sm" />
+              </div>
+            </div>
+            <input value={renegReason} onChange={e => setRenegReason(e.target.value)}
+              placeholder="Motivo de la renegociación (ej: cliente solicita extender el plazo)"
+              className="w-full px-3 py-2 border border-purple-200 rounded-lg text-sm" />
+            <div className="flex gap-2">
+              <button onClick={handleRenegotiate} disabled={actionLoading}
+                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-60">
+                {actionLoading ? 'Procesando...' : 'Confirmar renegociación'}
+              </button>
+              <button onClick={() => setShowRenegotiate(false)}
+                className="px-3 py-2 border border-gray-200 rounded-lg text-sm hover:bg-white">Cancelar</button>
+            </div>
           </div>
         )}
 

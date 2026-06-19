@@ -103,6 +103,42 @@ def drive_test(request):
 from rest_framework.permissions import AllowAny as _AllowAny
 
 
+@api_view(['GET'])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def audit_log_list(request):
+    """Devuelve las últimas entradas de auditoría desde el log file."""
+    import os
+    from pathlib import Path
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'detail': 'Solo administradores.'}, status=403)
+
+    log_path = os.environ.get('AUDIT_LOG_PATH', '')
+    if not log_path:
+        backups_dir = os.environ.get('BACKUPS_DIR', '')
+        data_dir = Path(backups_dir).parent if backups_dir else Path(os.environ.get('APPDATA', str(Path.home()))) / 'CredCore'
+        log_path = str(data_dir / 'logs' / 'audit.log')
+
+    if not Path(log_path).exists():
+        return JsonResponse({'entries': [], 'total': 0, 'path': log_path})
+
+    try:
+        limit = min(int(request.GET.get('limit', 200)), 500)
+    except Exception:
+        limit = 200
+
+    with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+        lines = f.readlines()
+
+    entries = []
+    for line in reversed(lines[-limit:]):
+        line = line.strip()
+        if not line:
+            continue
+        entries.append(line)
+    return JsonResponse({'entries': entries, 'total': len(lines), 'path': log_path})
+
+
 @api_view(['POST'])
 @permission_classes([_AllowAny])
 def admin_password_recovery(request):
@@ -346,6 +382,7 @@ urlpatterns = [
     path(f'{API}system/drive-config/', drive_config, name='drive-config'),
     path(f'{API}system/drive-test/', drive_test, name='drive-test'),
     path(f'{API}system/admin-recovery/', admin_password_recovery, name='admin-recovery'),
+    path(f'{API}system/audit-log/', audit_log_list, name='audit-log'),
 
     # Auth & Users
     path(f'{API}auth/', include('apps.users.urls')),

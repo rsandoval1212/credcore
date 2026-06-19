@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useDebounce } from '@/hooks/useDebounce'
 import { useNavigate } from 'react-router-dom'
 import ExportButton from '@/components/ui/ExportButton'
 import {
@@ -34,6 +35,7 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebounce(search, 300)
   const [statusFilter, setStatusFilter] = useState('')
   const [riskFilter, setRiskFilter] = useState('')
   const [page, setPage] = useState(1)
@@ -48,7 +50,7 @@ export default function CustomersPage() {
     setLoading(true)
     try {
       const params: Record<string, unknown> = { page }
-      if (search) params.search = search
+      if (debouncedSearch) params.search = debouncedSearch
       if (statusFilter) params.status = statusFilter
       if (riskFilter) params.risk_level = riskFilter
       if (dateRange) {
@@ -64,7 +66,7 @@ export default function CustomersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, statusFilter, riskFilter, dateRange])
+  }, [page, debouncedSearch, statusFilter, riskFilter, dateRange])
 
   const loadStats = useCallback(async () => {
     try {
@@ -140,7 +142,8 @@ export default function CustomersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar por nombre, cédula, código, teléfono..."
+              data-global-search
+              placeholder="Buscar por nombre, cédula, código, teléfono... (Ctrl+/)"
               value={search}
               onChange={e => handleSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"

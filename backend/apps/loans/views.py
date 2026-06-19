@@ -364,6 +364,128 @@ class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelVie
         pmts = Payment.objects.filter(loan=loan).order_by('-payment_date')
         return Response(PaymentSerializer(pmts, many=True).data)
 
+    # Calendario de cobros: cuotas con vencimiento en un rango (default: mes actual)
+    @action(detail=False, methods=['get'], url_path='collection-calendar')
+    def collection_calendar(self, request):
+        from datetime import datetime, timedelta as _td
+        try:
+            start = datetime.strptime(request.query_params.get('start', ''), '%Y-%m-%d').date()
+        except Exception:
+            today = timezone.now().date()
+            start = today.replace(day=1)
+        try:
+            end = datetime.strptime(request.query_params.get('end', ''), '%Y-%m-%d').date()
+        except Exception:
+            next_month = start.replace(day=28) + _td(days=4)
+            end = next_month - _td(days=next_month.day)
+
+        qs = LoanSchedule.objects.filter(
+            due_date__gte=start, due_date__lte=end,
+            loan__is_deleted=False,
+            status__in=['PENDING', 'PARTIAL', 'OVERDUE'],
+        ).select_related('loan', 'loan__customer').order_by('due_date')
+
+        user = request.user
+        if not user.is_superuser and getattr(user, 'branch_id', None):
+            qs = qs.filter(loan__branch_id=user.branch_id)
+
+        today = timezone.now().date()
+        items = []
+        for s in qs:
+            cust = s.loan.customer
+            items.append({
+                'id': str(s.id),
+                'loan_id': str(s.loan.id),
+                'loan_number': s.loan.loan_number,
+                'customer_name': cust.get_full_name(),
+                'customer_phone': cust.whatsapp or cust.phone1 or '',
+                'installment_number': s.installment_number,
+                'due_date': s.due_date.isoformat(),
+                'total_amount': float(s.total_amount),
+                'remaining': float(s.total_amount) - float(s.total_paid or 0),
+                'status': s.status,
+                'is_overdue': s.due_date < today and s.status != 'PAID',
+                'days_until_due': (s.due_date - today).days,
+            })
+
+        by_date = {}
+        for it in items:
+            by_date.setdefault(it['due_date'], []).append(it)
+
+        return Response({
+            'start': start.isoformat(),
+            'end': end.isoformat(),
+            'total_count': len(items),
+            'total_amount': sum(it['remaining'] for it in items),
+            'overdue_count': sum(1 for it in items if it['is_overdue']),
+            'by_date': by_date,
+            'items': items,
+        })
+
+    # Renegociación: cambia plazo/cuota de un préstamo activo sin perder historial
+    @action(detail=True, methods=['post'])
+    def renegotiate(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.is_staff):
+            return Response({'detail': 'Solo administradores pueden renegociar préstamos.'}, status=403)
+        loan = self.get_object()
+        if loan.status not in ('ACTIVE', 'DEFAULTED'):
+            return Response({'detail': 'Solo préstamos activos pueden renegociarse.'}, status=400)
+
+        try:
+            new_term = int(request.data.get('new_term_months', loan.term_months))
+            new_cuota = Decimal(str(request.data.get('new_monthly_payment', loan.monthly_payment))).quantize(Decimal('0.01'))
+        except Exception:
+            return Response({'detail': 'Datos inválidos.'}, status=400)
+
+        if new_term < 1 or new_cuota <= 0:
+            return Response({'detail': 'Plazo y cuota deben ser mayores a cero.'}, status=400)
+
+        reason = (request.data.get('reason') or 'Renegociación de términos').strip()
+
+        with transaction.atomic():
+            loan_locked = Loan.objects.select_for_update().get(pk=loan.pk)
+            old_term = loan_locked.term_months
+            old_cuota = loan_locked.monthly_payment
+
+            paid_count = loan_locked.schedule.filter(status='PAID').count()
+            loan_locked.schedule.filter(status__in=['PENDING', 'PARTIAL', 'OVERDUE']).delete()
+
+            remaining_periods = new_term - paid_count
+            if remaining_periods < 1:
+                return Response({'detail': 'El nuevo plazo debe ser mayor a las cuotas ya pagadas.'}, status=400)
+
+            from dateutil.relativedelta import relativedelta
+            from datetime import date as _date
+            base_date = loan_locked.last_payment_date or loan_locked.first_payment_date or _date.today()
+
+            outstanding_principal = Decimal(str(loan_locked.outstanding_principal))
+            outstanding_interest = Decimal(str(loan_locked.outstanding_interest))
+            cuota_principal = (outstanding_principal / remaining_periods).quantize(Decimal('0.01'))
+            cuota_interest = (outstanding_interest / remaining_periods).quantize(Decimal('0.01'))
+            total_outstanding = outstanding_principal + outstanding_interest
+
+            for i in range(1, remaining_periods + 1):
+                due = base_date + relativedelta(months=i)
+                LoanSchedule.objects.create(
+                    loan=loan_locked,
+                    installment_number=paid_count + i,
+                    due_date=due,
+                    principal_amount=cuota_principal,
+                    interest_amount=cuota_interest,
+                    total_amount=new_cuota,
+                    balance_after=max(Decimal('0'), total_outstanding - new_cuota * i),
+                    status='PENDING',
+                )
+
+            loan_locked.term_months = new_term
+            loan_locked.monthly_payment = new_cuota
+            loan_locked.total_installments = new_term
+            loan_locked.installments_remaining = remaining_periods
+            loan_locked.notes = f"[RENEGOCIADO por {request.user.email}: {old_term}meses/RD${old_cuota} -> {new_term}meses/RD${new_cuota}. Motivo: {reason}]\n{loan_locked.notes or ''}"
+            loan_locked.save()
+
+        return Response(LoanDetailSerializer(loan_locked).data)
+
     # Admin agrega mora manualmente a un préstamo o cuota atrasada
     @action(detail=True, methods=['post'], url_path='add-late-fee')
     def add_late_fee(self, request, pk=None):

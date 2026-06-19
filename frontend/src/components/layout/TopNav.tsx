@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, DollarSign,
-  Archive, Shield, BarChart3, Settings,
+  Archive, Shield, BarChart3, Settings, Moon, Sun, Calendar,
   ClipboardList, Wallet, Calculator, AlertTriangle, ArrowLeftRight,
   Bell, LogOut, ChevronDown, Menu, X, Clock,
 } from 'lucide-react'
@@ -48,6 +48,7 @@ import { clsx } from 'clsx'
 import { companyService } from '@/services/company'
 import { notificationsService } from '@/services/notifications'
 import { useAuthStore } from '@/store/slices/authStore'
+import { useThemeStore } from '@/store/slices/themeStore'
 import NotificationsPanel from '@/components/notifications/NotificationsPanel'
 import defaultLogo from '@/assets/logo.png'
 
@@ -57,6 +58,7 @@ const navItems = [
   { to: '/applications', icon: ClipboardList,   label: 'Solicitudes'  },
   { to: '/loans',        icon: CreditCard,      label: 'Préstamos'    },
   { to: '/payments',     icon: DollarSign,      label: 'Cobros'       },
+  { to: '/calendar',     icon: Calendar,        label: 'Calendario'   },
   { to: '/collections',  icon: AlertTriangle,   label: 'Cobranza'     },
   { to: '/cash',         icon: Wallet,          label: 'Caja'         },
   { to: '/exchange',     icon: ArrowLeftRight,  label: 'Cambio'       },
@@ -71,6 +73,7 @@ const navItems = [
 export default function TopNav() {
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { theme, toggle: toggleTheme } = useThemeStore()
   const [companyName, setCompanyName] = useState('CredCore')
   const [logoUrl, setLogoUrl]         = useState<string>(defaultLogo)
   const [alertCount, setAlertCount]   = useState(0)
@@ -162,6 +165,17 @@ export default function TopNav() {
 
           {/* ── Acciones derecha ─────────────────────────────────────── */}
           <div className="flex items-center gap-1.5 shrink-0">
+
+            {/* Tema */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg hover:bg-gray-700 transition-colors"
+              title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            >
+              {theme === 'dark'
+                ? <Sun className="h-5 w-5 text-amber-300" />
+                : <Moon className="h-5 w-5 text-gray-300" />}
+            </button>
 
             {/* Notificaciones */}
             <button
