@@ -1,1 +1,6 @@
-{"version":"1.1.7","download_url":"https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.7-Setup.exe","notes":"Fix decimales en montos + agregar mora manual + recuperación de contraseña admin + reporte ejecutivo con ganancia recuperada del día/mes/año."}
+{
+  "version": "1.1.8",
+  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.1.8-Setup.exe",
+  "notes": "Actualizacion segura: calendario de cobros, ruta GPS, renegociacion, firma digital, auditoria, modo oscuro y respaldo automatico antes de migrar.",
+  "mandatory": false
+}
