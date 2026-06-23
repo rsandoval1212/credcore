@@ -364,6 +364,27 @@ class LoanViewSet(AutoMainBranchMixin, SoftDeleteViewSetMixin, viewsets.ModelVie
         pmts = Payment.objects.filter(loan=loan).order_by('-payment_date')
         return Response(PaymentSerializer(pmts, many=True).data)
 
+    # Admin edita información básica del préstamo (sin tocar saldos)
+    @action(detail=True, methods=['patch'], url_path='admin-edit')
+    def admin_edit(self, request, pk=None):
+        if not (request.user.is_superuser or request.user.is_staff):
+            return Response({'detail': 'Solo administradores pueden editar préstamos.'}, status=403)
+        loan = self.get_object()
+        editable = ['notes', 'officer', 'maturity_date', 'first_payment_date',
+                    'late_fee_rate', 'commission_amount', 'is_confidential']
+        changes = []
+        for field in editable:
+            if field in request.data:
+                old = getattr(loan, field, None)
+                new = request.data[field]
+                if str(old) != str(new):
+                    setattr(loan, field, new)
+                    changes.append(f"{field}: {old} → {new}")
+        if changes:
+            loan.notes = f"[EDITADO por {request.user.email}: {', '.join(changes)}]\n{loan.notes or ''}"
+            loan.save()
+        return Response(LoanDetailSerializer(loan).data)
+
     # Calendario de cobros: cuotas con vencimiento en un rango (default: mes actual)
     @action(detail=False, methods=['get'], url_path='collection-calendar')
     def collection_calendar(self, request):

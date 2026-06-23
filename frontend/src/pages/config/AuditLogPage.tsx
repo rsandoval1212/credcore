@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Activity, RefreshCw, Download } from 'lucide-react'
+import { Activity, RefreshCw, Download, Trash2 } from 'lucide-react'
 import api from '@/services/api'
+import toast from 'react-hot-toast'
 import { useDebounce } from '@/hooks/useDebounce'
 import EmptyState from '@/components/ui/EmptyState'
 import { SkeletonTable } from '@/components/ui/Skeleton'
@@ -55,6 +56,25 @@ export default function AuditLogPage() {
           }}
             className="flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
             <Download className="h-3.5 w-3.5" /> Descargar
+          </button>
+          <button onClick={async () => {
+            if (!window.confirm(`¿Eliminar TODAS las entradas del registro de actividad? Esta acción no se puede deshacer.\n\nSe descargará primero un respaldo automáticamente.`)) return
+            const blob = new Blob([entries.join('\n')], { type: 'text/plain' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a'); a.href = url; a.download = `audit_backup_${new Date().toISOString().slice(0,10)}.log`
+            a.click(); URL.revokeObjectURL(url)
+            try {
+              const r = await api.delete<{ cleared: number }>('/system/audit-log/')
+              toast.success(`${r.data.cleared} entradas eliminadas`)
+              setEntries([])
+              setTimeout(load, 500)
+            } catch (e: unknown) {
+              const err = e as { response?: { data?: { detail?: string } } }
+              toast.error(err.response?.data?.detail || 'Error al limpiar')
+            }
+          }}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs border border-red-200 text-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
+            <Trash2 className="h-3.5 w-3.5" /> Limpiar todo
           </button>
         </div>
       </div>

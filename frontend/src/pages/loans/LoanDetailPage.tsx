@@ -16,6 +16,7 @@ import api from '@/services/api'
 import AdminConfirmModal from '@/components/ui/AdminConfirmModal'
 import ExportButton from '@/components/ui/ExportButton'
 import DropdownMenu from '@/components/ui/DropdownMenu'
+import LoanEditModal from './LoanEditModal'
 import SignaturePad from '@/components/ui/SignaturePad'
 import { useAuthStore } from '@/store/slices/authStore'
 
@@ -67,6 +68,7 @@ export default function LoanDetailPage() {
   const [tab, setTab] = useState('resumen')
   const [showWriteOff, setShowWriteOff]   = useState(false)
   const [showRenegotiate, setShowRenegotiate] = useState(false)
+  const [showEdit, setShowEdit] = useState(false)
   const [renegTerm, setRenegTerm] = useState('')
   const [renegCuota, setRenegCuota] = useState('')
   const [renegReason, setRenegReason] = useState('')
@@ -339,6 +341,13 @@ export default function LoanDetailPage() {
                 ✍️ <span className="hidden sm:inline">Firmar</span>
               </button>
             )}
+            {isAdmin && (
+              <button onClick={() => setShowEdit(true)}
+                title="Editar información del préstamo"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-blue-200 text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100">
+                ✎ <span className="hidden sm:inline">Editar</span>
+              </button>
+            )}
             {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && isAdmin && (
               <button onClick={() => { setShowRenegotiate(true); setRenegTerm(String(loan.term_months)); setRenegCuota(String(loan.monthly_payment)) }}
                 title="Renegociar plazo y cuota"
@@ -470,6 +479,9 @@ export default function LoanDetailPage() {
           onClose={() => setPendingMoraFn(null)}
         />
       )}
+
+      {/* Editar préstamo (Admin) */}
+      {showEdit && <LoanEditModal loan={loan} onClose={() => setShowEdit(false)} onSaved={() => { setShowEdit(false); load() }} />}
 
       {/* Firma digital */}
       {showSignature && (

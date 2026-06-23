@@ -103,11 +103,11 @@ def drive_test(request):
 from rest_framework.permissions import AllowAny as _AllowAny
 
 
-@api_view(['GET'])
+@api_view(['GET', 'DELETE'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def audit_log_list(request):
-    """Devuelve las últimas entradas de auditoría desde el log file."""
+    """GET: lista entradas. DELETE: limpia el log (solo admin)."""
     import os
     from pathlib import Path
     if not (request.user.is_superuser or request.user.is_staff):
@@ -118,6 +118,19 @@ def audit_log_list(request):
         backups_dir = os.environ.get('BACKUPS_DIR', '')
         data_dir = Path(backups_dir).parent if backups_dir else Path(os.environ.get('APPDATA', str(Path.home()))) / 'CredCore'
         log_path = str(data_dir / 'logs' / 'audit.log')
+
+    if request.method == 'DELETE':
+        if not Path(log_path).exists():
+            return JsonResponse({'success': True, 'cleared': 0})
+        try:
+            with open(log_path, 'r', encoding='utf-8', errors='replace') as f:
+                count = sum(1 for line in f if line.strip())
+            with open(log_path, 'w', encoding='utf-8') as f:
+                from datetime import datetime
+                f.write(f"{datetime.now().isoformat()} [AUDIT_CLEARED] por {request.user.email} ({count} entradas eliminadas)\n")
+            return JsonResponse({'success': True, 'cleared': count})
+        except Exception as e:
+            return JsonResponse({'success': False, 'detail': str(e)}, status=400)
 
     if not Path(log_path).exists():
         return JsonResponse({'entries': [], 'total': 0, 'path': log_path})

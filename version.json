@@ -1,6 +1,6 @@
 {
-  "version": "1.3.0",
-  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.3.0-Setup.exe",
-  "notes": "Tablero del cobrador (Mi Ruta) + recordatorios masivos WhatsApp + score de salud del préstamo + validación cédula DR en tiempo real.",
+  "version": "1.3.1",
+  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.3.1-Setup.exe",
+  "notes": "Limpiar registro de actividad + reloj compacto desplegable + iconos del menú reorganizados (sin superposición) + botón editar préstamo (admin) + logo en PDFs garantizado.",
   "mandatory": false
 }

@@ -7,40 +7,48 @@ import {
   Bell, LogOut, ChevronDown, Menu, X, Clock,
 } from 'lucide-react'
 
-// ─── Reloj en tiempo real ─────────────────────────────────────────────────────
-function LiveClock({ compact = false }: { compact?: boolean }) {
+// ─── Botón compacto con fecha+hora desplegable ───────────────────────────────
+function ClockButton() {
   const [now, setNow] = useState(new Date())
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(id)
   }, [])
 
-  const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-  const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
 
-  const day   = DAYS[now.getDay()]
-  const date  = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`
-  const time  = compact
-    ? now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true })
-    : now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+  const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const MONTHS_LONG = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 
-  if (compact) {
-    return (
-      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-gray-800/60">
-        <Clock className="h-3 w-3 text-primary-400" />
-        <span className="text-xs font-bold text-white font-mono">{time}</span>
-      </div>
-    )
-  }
+  const time = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const timeSec = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+  const fullDate = `${DAYS_LONG[now.getDay()]}, ${now.getDate()} de ${MONTHS_LONG[now.getMonth()]} de ${now.getFullYear()}`
 
   return (
-    <div className="flex flex-col items-end leading-tight shrink-0 border-l border-gray-700 pl-3 ml-2">
-      <div className="flex items-center gap-1.5">
-        <Clock className="h-3 w-3 text-primary-400" />
-        <span className="text-sm font-bold text-white font-mono tracking-wide">{time}</span>
-      </div>
-      <span className="text-[10px] text-gray-400">{day}, {date}</span>
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(v => !v)}
+        title={fullDate + ' · ' + timeSec}
+        className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-gray-700 transition-colors">
+        <Clock className="h-4 w-4 text-primary-400" />
+        <span className="hidden md:inline text-xs font-mono text-white">{time}</span>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 min-w-[240px] bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50 animate-in fade-in zoom-in-95">
+          <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 font-mono text-center">{timeSec}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">{fullDate}</p>
+          <p className="text-[10px] text-gray-400 text-center mt-2 border-t border-gray-100 dark:border-gray-700 pt-2">Zona horaria: {Intl.DateTimeFormat().resolvedOptions().timeZone}</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -144,8 +152,7 @@ export default function TopNav() {
 
           {/* Reloj compacto en mobile/tablet */}
           <div className="flex lg:hidden">
-            <LiveClock compact />
-          </div>
+                      </div>
 
           {/* ── Navegación horizontal (desktop) ──────────────────────── */}
           <nav className="hidden lg:flex items-center gap-0.5 flex-1 overflow-x-auto scrollbar-hide px-0.5">
@@ -158,14 +165,16 @@ export default function TopNav() {
 
             {/* Reloj — justificado a la derecha después de Configuración */}
             <div className="ml-auto" />
-            <LiveClock />
-          </nav>
+                      </nav>
 
           {/* Spacer en tablet */}
           <div className="flex-1 lg:hidden" />
 
           {/* ── Acciones derecha ─────────────────────────────────────── */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-0.5 shrink-0">
+
+            {/* Reloj compacto */}
+            <ClockButton />
 
             {/* Tema */}
             <button
@@ -174,8 +183,8 @@ export default function TopNav() {
               title={theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
             >
               {theme === 'dark'
-                ? <Sun className="h-5 w-5 text-amber-300" />
-                : <Moon className="h-5 w-5 text-gray-300" />}
+                ? <Sun className="h-4 w-4 text-amber-300" />
+                : <Moon className="h-4 w-4 text-gray-300" />}
             </button>
 
             {/* Notificaciones */}
@@ -184,9 +193,9 @@ export default function TopNav() {
               className="relative p-2 rounded-lg hover:bg-gray-700 transition-colors"
               title="Alertas de cobro"
             >
-              <Bell className="h-5 w-5 text-gray-300" />
+              <Bell className="h-4 w-4 text-gray-300" />
               {alertCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold ring-2 ring-gray-900">
+                <span className="absolute top-0.5 right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-white text-[9px] font-bold ring-2 ring-gray-900">
                   {alertCount > 99 ? '99+' : alertCount}
                 </span>
               )}
