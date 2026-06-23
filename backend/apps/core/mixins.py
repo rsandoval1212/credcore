@@ -44,10 +44,14 @@ class SoftDeleteViewSetMixin:
         return qs
 
     def perform_destroy(self, instance):
+        # Admins (superuser o staff) pueden forzar eliminación incluso de activos
+        is_admin = getattr(self.request.user, 'is_superuser', False) or getattr(self.request.user, 'is_staff', False)
+        force = self.request.query_params.get('force', '').lower() in ('1', 'true', 'yes')
+
         if hasattr(instance, 'is_deleted'):
-            # FIX #19: Proteger entidades con dependencias activas
             if hasattr(instance, 'status') and instance.status in ('ACTIVE', 'DISBURSED'):
-                raise Exception('No se puede eliminar un registro activo.')
+                if not (is_admin and force):
+                    raise Exception('Registro activo. Admin debe pasar ?force=true para eliminarlo.')
             instance.delete(user=self.request.user)
         else:
             instance.delete()

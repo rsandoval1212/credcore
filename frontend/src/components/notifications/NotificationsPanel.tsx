@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   X, AlertTriangle, Clock, MessageCircle,
-  CreditCard, RefreshCw, CheckCircle,
+  CreditCard, RefreshCw, CheckCircle, BellOff, EyeOff, Trash2,
 } from 'lucide-react'
+import DropdownMenu from '@/components/ui/DropdownMenu'
 import { notificationsService, type Alert } from '@/services/notifications'
 import toast from 'react-hot-toast'
 
@@ -23,6 +24,41 @@ export default function NotificationsPanel({ onClose }: Props) {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'all' | 'overdue' | 'upcoming'>('all')
   const [sendingWa, setSendingWa] = useState<string | null>(null)
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('credcore-dismissed-alerts')
+      return new Set(stored ? JSON.parse(stored) : [])
+    } catch { return new Set() }
+  })
+
+  const saveDismissed = (ids: Set<string>) => {
+    setDismissedIds(ids)
+    localStorage.setItem('credcore-dismissed-alerts', JSON.stringify([...ids]))
+  }
+
+  const dismissOne = (id: string) => {
+    const next = new Set(dismissedIds); next.add(id); saveDismissed(next)
+  }
+
+  const dismissAll = () => {
+    if (!window.confirm('¿Marcar todas las alertas como vistas?')) return
+    const next = new Set(dismissedIds)
+    alerts.forEach(a => next.add(a.id))
+    saveDismissed(next)
+    toast.success('Todas las alertas fueron ocultadas')
+  }
+
+  const muteToday = () => {
+    const tomorrow = new Date(); tomorrow.setHours(24, 0, 0, 0)
+    localStorage.setItem('credcore-mute-until', String(tomorrow.getTime()))
+    toast.success('Alertas silenciadas hasta mañana', { duration: 4000 })
+    onClose()
+  }
+
+  const restoreAll = () => {
+    saveDismissed(new Set())
+    toast.success('Alertas restauradas')
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -67,8 +103,9 @@ export default function NotificationsPanel({ onClose }: Props) {
     }
   }
 
-  const overdueCount = alerts.filter(a => a.type === 'overdue').length
-  const upcomingCount = alerts.filter(a => a.type === 'upcoming').length
+  const visibleAlerts = alerts.filter(a => !dismissedIds.has(a.id))
+  const overdueCount = visibleAlerts.filter(a => a.type === 'overdue').length
+  const upcomingCount = visibleAlerts.filter(a => a.type === 'upcoming').length
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -88,9 +125,22 @@ export default function NotificationsPanel({ onClose }: Props) {
               {overdueCount === 0 && upcomingCount === 0 && 'Sin alertas pendientes'}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-400" />
-          </button>
+          <div className="flex items-center gap-1">
+            <DropdownMenu
+              align="right"
+              trigger={<><span className="text-xs">Acciones</span><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></>}
+              buttonClassName="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
+              items={[
+                { label: 'Marcar todas como vistas', icon: <EyeOff className="h-4 w-4" />, onClick: dismissAll },
+                { label: 'Silenciar hasta mañana', icon: <BellOff className="h-4 w-4" />, onClick: muteToday },
+                { label: 'Restaurar todas', icon: <RefreshCw className="h-4 w-4" />, onClick: restoreAll, divider: true },
+                { label: 'Limpiar caché de alertas', icon: <Trash2 className="h-4 w-4" />, onClick: () => { localStorage.removeItem('credcore-dismissed-alerts'); localStorage.removeItem('credcore-mute-until'); setDismissedIds(new Set()); toast.success('Caché limpiado') }, variant: 'danger' },
+              ]}
+            />
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
+              <X className="h-5 w-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -127,20 +177,24 @@ export default function NotificationsPanel({ onClose }: Props) {
             <div className="flex items-center justify-center py-16">
               <RefreshCw className="h-5 w-5 text-primary-500 animate-spin" />
             </div>
-          ) : alerts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+          ) : visibleAlerts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400 px-6 text-center">
               <CheckCircle className="h-12 w-12 mb-3 opacity-30" />
-              <p className="font-medium">¡Todo al día!</p>
-              <p className="text-sm mt-1">No hay pagos vencidos ni próximos a vencer</p>
+              <p className="font-medium">{alerts.length === 0 ? '¡Todo al día!' : 'Sin alertas pendientes'}</p>
+              <p className="text-sm mt-1">{alerts.length === 0 ? 'No hay pagos vencidos ni próximos a vencer' : `${alerts.length} alerta(s) marcada(s) como vista(s)`}</p>
+              {alerts.length > 0 && (
+                <button onClick={restoreAll} className="mt-3 text-xs text-primary-600 hover:underline">Restaurar alertas ocultas</button>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {alerts.map(alert => (
+              {visibleAlerts.map(alert => (
                 <AlertCard
                   key={alert.id}
                   alert={alert}
                   onWhatsApp={() => handleSendWhatsApp(alert)}
                   onViewLoan={() => { navigate(`/loans/${alert.loan_id}`); onClose() }}
+                  onDismiss={() => dismissOne(alert.id)}
                   sending={sendingWa === alert.id}
                 />
               ))}
@@ -160,8 +214,8 @@ export default function NotificationsPanel({ onClose }: Props) {
   )
 }
 
-function AlertCard({ alert, onWhatsApp, onViewLoan, sending }: {
-  alert: Alert; onWhatsApp: () => void; onViewLoan: () => void; sending: boolean
+function AlertCard({ alert, onWhatsApp, onViewLoan, onDismiss, sending }: {
+  alert: Alert; onWhatsApp: () => void; onViewLoan: () => void; onDismiss: () => void; sending: boolean
 }) {
   const isOverdue = alert.type === 'overdue'
 
@@ -200,6 +254,10 @@ function AlertCard({ alert, onWhatsApp, onViewLoan, sending }: {
           className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${alert.wa_url_reminder ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-100 text-gray-400'}`}>
           <MessageCircle className="h-3.5 w-3.5" />
           {sending ? 'Abriendo...' : alert.wa_url_reminder ? 'WhatsApp' : 'Sin WA'}
+        </button>
+        <button onClick={onDismiss} title="Marcar como vista"
+          className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-400">
+          <X className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>
