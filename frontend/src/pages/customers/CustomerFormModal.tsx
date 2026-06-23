@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, ChevronRight, ChevronLeft, User, MapPin, Briefcase, Save, Camera } from 'lucide-react'
 import { customersService } from '@/services/customers'
+import { isValidCedulaDR, formatCedulaDR } from '@/utils/cedulaDR'
 import type { Customer } from '@/types'
 import toast from 'react-hot-toast'
 import api from '@/services/api'
@@ -261,7 +262,32 @@ function StepPersonal({ form, set, branches, photoPreview, onPhotoChange }: {
             <option value="OTHER">Otro</option>
           </select>
         </Field>
-        <Field label="Número de documento" required><input value={form.id_number || ''} onChange={e => set('id_number', e.target.value)} className={inputCls} placeholder="000-0000000-0" /></Field>
+        <Field label="Número de documento" required>
+          {(() => {
+            const cedulaValid = form.id_type === 'CEDULA' && form.id_number
+              ? isValidCedulaDR(String(form.id_number))
+              : null
+            return (
+              <div className="relative">
+                <input value={form.id_number || ''}
+                  onChange={e => {
+                    const v = form.id_type === 'CEDULA' ? formatCedulaDR(e.target.value) : e.target.value
+                    set('id_number', v)
+                  }}
+                  className={`${inputCls} ${cedulaValid === false ? 'border-red-300' : cedulaValid === true ? 'border-emerald-300' : ''}`}
+                  placeholder={form.id_type === 'CEDULA' ? '000-0000000-0' : 'Número de documento'} />
+                {cedulaValid !== null && (
+                  <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold ${cedulaValid ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {cedulaValid ? '✓' : '✗'}
+                  </span>
+                )}
+                {form.id_type === 'CEDULA' && form.id_number && !cedulaValid && (
+                  <p className="text-[10px] text-red-500 mt-0.5">Cédula inválida (dígito verificador no coincide)</p>
+                )}
+              </div>
+            )
+          })()}
+        </Field>
         <Field label="Vencimiento del doc."><input type="date" value={form.id_expiry_date || ''} onChange={e => set('id_expiry_date', e.target.value)} className={inputCls} /></Field>
       </div>
     </div>

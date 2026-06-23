@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Users, CreditCard, DollarSign,
-  Archive, Shield, BarChart3, Settings, Moon, Sun, Calendar,
+  Archive, Shield, BarChart3, Settings, Moon, Sun, Calendar, Route,
   ClipboardList, Wallet, Calculator, AlertTriangle, ArrowLeftRight,
   Bell, LogOut, ChevronDown, Menu, X, Clock,
 } from 'lucide-react'
@@ -58,6 +58,7 @@ const navItems = [
   { to: '/applications', icon: ClipboardList,   label: 'Solicitudes'  },
   { to: '/loans',        icon: CreditCard,      label: 'Préstamos'    },
   { to: '/payments',     icon: DollarSign,      label: 'Cobros'       },
+  { to: '/route',        icon: Route,           label: 'Mi Ruta'      },
   { to: '/calendar',     icon: Calendar,        label: 'Calendario'   },
   { to: '/collections',  icon: AlertTriangle,   label: 'Cobranza'     },
   { to: '/cash',         icon: Wallet,          label: 'Caja'         },

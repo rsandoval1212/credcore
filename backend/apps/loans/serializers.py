@@ -16,6 +16,28 @@ class LoanScheduleSerializer(serializers.ModelSerializer):
         return float(obj.total_amount) - float(obj.total_paid)
 
 
+def calc_health_score(loan):
+    """Calcula semáforo de salud del préstamo: green | yellow | red.
+
+    Reglas:
+    - red:    days_past_due > 30 o status DEFAULTED/WRITTEN_OFF
+    - yellow: days_past_due 1-30 o cuotas pagadas < 50%
+    - green:  al día, sin atraso
+    """
+    if loan.status in ('DEFAULTED', 'WRITTEN_OFF'):
+        return {'color': 'red', 'score': 0, 'label': 'Crítico'}
+    dpd = int(getattr(loan, 'days_past_due', 0) or 0)
+    if dpd > 30:
+        return {'color': 'red', 'score': max(0, 100 - dpd), 'label': f'{dpd} días atraso'}
+    if dpd > 0:
+        return {'color': 'yellow', 'score': max(50, 100 - dpd * 2), 'label': f'{dpd} días atraso'}
+    total = int(getattr(loan, 'total_installments', 0) or 0)
+    paid = int(getattr(loan, 'installments_paid', 0) or 0)
+    if total > 0 and paid / total < 0.3:
+        return {'color': 'yellow', 'score': 70, 'label': 'Inicial'}
+    return {'color': 'green', 'score': 95, 'label': 'Al día'}
+
+
 class LoanListSerializer(serializers.ModelSerializer):
     customer_name = serializers.CharField(source='customer.get_full_name', read_only=True)
     customer_code = serializers.CharField(source='customer.customer_code', read_only=True)
@@ -24,6 +46,7 @@ class LoanListSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     payment_frequency_display = serializers.CharField(source='get_payment_frequency_display', read_only=True)
     total_outstanding = serializers.SerializerMethodField()
+    health = serializers.SerializerMethodField()
 
     class Meta:
         model = Loan
@@ -37,6 +60,7 @@ class LoanListSerializer(serializers.ModelSerializer):
             'status', 'status_display', 'days_past_due',
             'disbursement_date', 'maturity_date',
             'installments_paid', 'installments_remaining', 'total_paid',
+            'health',
         ]
 
     def get_total_outstanding(self, obj):
@@ -45,6 +69,9 @@ class LoanListSerializer(serializers.ModelSerializer):
             float(obj.outstanding_interest) +
             float(obj.outstanding_late_fees)
         )
+
+    def get_health(self, obj):
+        return calc_health_score(obj)
 
 
 class LoanDetailSerializer(serializers.ModelSerializer):

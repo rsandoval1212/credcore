@@ -24,6 +24,7 @@ const CollectionsPage       = lazy(() => import('@/pages/collections/Collections
 const InvestorDashboardPage = lazy(() => import('@/pages/investors/InvestorDashboardPage'))
 const CurrencyExchangePage  = lazy(() => import('@/pages/exchange/CurrencyExchangePage'))
 const CollectionCalendarPage = lazy(() => import('@/pages/calendar/CollectionCalendarPage'))
+const CollectionRoutePage   = lazy(() => import('@/pages/route/CollectionRoutePage'))
 const AuditLogPage          = lazy(() => import('@/pages/config/AuditLogPage'))
 
 /* ── Loading spinner ─────────────────────────────────────────────────────── */
@@ -67,6 +68,7 @@ export default function App() {
                       <Route path="/loans/:id"          element={<LoanDetailPage />} />
                       <Route path="/payments"           element={<PaymentsPage />} />
                       <Route path="/calendar"           element={<CollectionCalendarPage />} />
+                      <Route path="/route"              element={<CollectionRoutePage />} />
                       <Route path="/audit"              element={<AuditLogPage />} />
                       <Route path="/collections"        element={<CollectionsPage />} />
                       <Route path="/cash"               element={<CashPage />} />

@@ -1,6 +1,6 @@
 {
-  "version": "1.2.1",
-  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.2.1-Setup.exe",
-  "notes": "Fix logo de empresa: ahora se guarda en %APPDATA% y aparece correctamente en TODOS los PDFs (recibos, contratos, tablas de amortización, estados de cuenta).",
+  "version": "1.3.0",
+  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.3.0-Setup.exe",
+  "notes": "Tablero del cobrador (Mi Ruta) + recordatorios masivos WhatsApp + score de salud del préstamo + validación cédula DR en tiempo real.",
   "mandatory": false
 }

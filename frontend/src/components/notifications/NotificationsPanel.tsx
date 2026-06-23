@@ -88,20 +88,22 @@ export default function NotificationsPanel({ onClose }: Props) {
     }
   }
 
-  const handleSendAllOverdue = () => {
-    const overdueWithWa = alerts.filter(a => a.type === 'overdue' && a.wa_url_reminder)
-    if (overdueWithWa.length === 0) {
-      toast.error('No hay clientes atrasados con WhatsApp registrado')
+  const handleSendBulk = (type: 'overdue' | 'upcoming') => {
+    const matching = alerts.filter(a => a.type === type && a.wa_url_reminder && !dismissedIds.has(a.id))
+    if (matching.length === 0) {
+      toast.error(`No hay clientes ${type === 'overdue' ? 'atrasados' : 'próximos'} con WhatsApp`)
       return
     }
-    // Abrir el primero (browsers bloquean múltiples popups)
-    notificationsService.openWhatsApp(overdueWithWa[0].wa_url_reminder!)
-    if (overdueWithWa.length > 1) {
-      toast(`Abriendo WhatsApp de ${overdueWithWa[0].customer_name}. Repite para los demás.`, { icon: '📱' })
-    } else {
-      toast.success('WhatsApp abierto')
-    }
+    if (!window.confirm(`Vas a abrir WhatsApp para ${matching.length} cliente(s). Se abrirán de a uno (el navegador bloquea pop-ups múltiples). ¿Continuar?`)) return
+    // Abrir el primero; los demás van en una cola que el operador puede pulsar siguiente
+    matching.forEach((a, idx) => {
+      setTimeout(() => {
+        notificationsService.openWhatsApp(a.wa_url_reminder!)
+      }, idx * 500)
+    })
+    toast.success(`Abriendo ${matching.length} mensajes de WhatsApp`, { icon: '📱', duration: 4000 })
   }
+
 
   const visibleAlerts = alerts.filter(a => !dismissedIds.has(a.id))
   const overdueCount = visibleAlerts.filter(a => a.type === 'overdue').length
@@ -164,16 +166,29 @@ export default function NotificationsPanel({ onClose }: Props) {
         </div>
 
         {/* Acciones masivas */}
-        {overdueCount > 0 && (
-          <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center justify-between">
-            <p className="text-xs text-red-700 font-medium">
-              {overdueCount} cliente{overdueCount !== 1 ? 's' : ''} con pagos vencidos
+        {(overdueCount > 0 || upcomingCount > 0) && (
+          <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2">
+            <p className="text-xs text-gray-600 font-medium">
+              {overdueCount > 0 && <span className="text-red-700">{overdueCount} atrasados</span>}
+              {overdueCount > 0 && upcomingCount > 0 && <span className="text-gray-400"> · </span>}
+              {upcomingCount > 0 && <span className="text-amber-700">{upcomingCount} próximos</span>}
             </p>
-            <button onClick={handleSendAllOverdue}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-medium hover:bg-green-700">
-              <MessageCircle className="h-3.5 w-3.5" />
-              WhatsApp a atrasados
-            </button>
+            <div className="flex gap-1">
+              {overdueCount > 0 && (
+                <button onClick={() => handleSendBulk('overdue')}
+                  title="WhatsApp masivo a todos los atrasados"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-red-600 text-white rounded-md text-xs font-medium hover:bg-red-700">
+                  <MessageCircle className="h-3 w-3" /> Atrasados
+                </button>
+              )}
+              {upcomingCount > 0 && (
+                <button onClick={() => handleSendBulk('upcoming')}
+                  title="WhatsApp masivo a próximos a vencer"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-amber-600 text-white rounded-md text-xs font-medium hover:bg-amber-700">
+                  <MessageCircle className="h-3 w-3" /> Próximos
+                </button>
+              )}
+            </div>
           </div>
         )}
 
