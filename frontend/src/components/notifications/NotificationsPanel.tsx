@@ -126,18 +126,24 @@ export default function NotificationsPanel({ onClose }: Props) {
             </p>
           </div>
           <div className="flex items-center gap-1">
+            <button onClick={dismissAll} title="Marcar todas como vistas"
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700">
+              <EyeOff className="h-4 w-4" />
+            </button>
+            <button onClick={muteToday} title="Silenciar hasta mañana"
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700">
+              <BellOff className="h-4 w-4" />
+            </button>
             <DropdownMenu
               align="right"
-              trigger={<><span className="text-xs">Acciones</span><svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></>}
-              buttonClassName="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
+              trigger={<svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>}
+              buttonClassName="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
               items={[
-                { label: 'Marcar todas como vistas', icon: <EyeOff className="h-4 w-4" />, onClick: dismissAll },
-                { label: 'Silenciar hasta mañana', icon: <BellOff className="h-4 w-4" />, onClick: muteToday },
-                { label: 'Restaurar todas', icon: <RefreshCw className="h-4 w-4" />, onClick: restoreAll, divider: true },
-                { label: 'Limpiar caché de alertas', icon: <Trash2 className="h-4 w-4" />, onClick: () => { localStorage.removeItem('credcore-dismissed-alerts'); localStorage.removeItem('credcore-mute-until'); setDismissedIds(new Set()); toast.success('Caché limpiado') }, variant: 'danger' },
+                { label: 'Restaurar alertas ocultas', icon: <RefreshCw className="h-4 w-4" />, onClick: restoreAll },
+                { label: 'Limpiar caché completo', icon: <Trash2 className="h-4 w-4" />, onClick: () => { localStorage.removeItem('credcore-dismissed-alerts'); localStorage.removeItem('credcore-mute-until'); setDismissedIds(new Set()); toast.success('Caché limpiado') }, variant: 'danger', divider: true },
               ]}
             />
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100">
               <X className="h-5 w-5 text-gray-400" />
             </button>
           </div>

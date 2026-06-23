@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import api from '@/services/api'
 import AdminConfirmModal from '@/components/ui/AdminConfirmModal'
 import ExportButton from '@/components/ui/ExportButton'
+import DropdownMenu from '@/components/ui/DropdownMenu'
 import SignaturePad from '@/components/ui/SignaturePad'
 import { useAuthStore } from '@/store/slices/authStore'
 
@@ -284,88 +285,76 @@ export default function LoanDetailPage() {
             </div>
           </div>
 
-          {/* Acciones */}
-          <div className="flex gap-2 flex-wrap">
-            {/* PDF Downloads */}
+          {/* Acciones — compactas: iconos con tooltip + dropdown para acciones avanzadas */}
+          <div className="flex gap-1.5 flex-wrap items-center">
+            {/* Grupo PDFs */}
             <ExportButton
               endpoint={`/api/v1/reports/pdf/contract/${id}/`}
-              label="Contrato PDF"
+              label="Contrato"
               variant="outline"
-              className="text-xs px-3 py-2 border-blue-200 text-blue-700 hover:bg-blue-50"
+              className="text-xs px-2.5 py-1.5 border-blue-200 text-blue-700 hover:bg-blue-50"
             />
             <ExportButton
               endpoint={`/api/v1/reports/pdf/amortization/${id}/`}
-              label="Tabla PDF"
+              label="Tabla"
               variant="outline"
-              className="text-xs px-3 py-2 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              className="text-xs px-2.5 py-1.5 border-indigo-200 text-indigo-700 hover:bg-indigo-50"
             />
             <ExportButton
               endpoint={`/api/v1/reports/pdf/statement/${id}/`}
-              label="Estado PDF"
+              label="Estado"
               variant="outline"
-              className="text-xs px-3 py-2 border-purple-200 text-purple-700 hover:bg-purple-50"
+              className="text-xs px-2.5 py-1.5 border-purple-200 text-purple-700 hover:bg-purple-50"
             />
-            {/* Firma digital */}
+
+            {/* Grupo WhatsApp en un dropdown */}
+            <DropdownMenu
+              align="right"
+              buttonClassName="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100"
+              trigger={<><MessageCircle className="h-3.5 w-3.5" /><span>WhatsApp</span><svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></>}
+              items={[
+                { label: sharing === 'amort' ? 'Generando tabla...' : 'Enviar tabla de amortización', icon: <MessageCircle className="h-4 w-4" />, onClick: handleShareAmortization, disabled: sharing === 'amort' },
+                { label: sharing === 'statement' ? 'Generando estado...' : 'Enviar estado de cuenta', icon: <MessageCircle className="h-4 w-4" />, onClick: handleShareStatement, disabled: sharing === 'statement' },
+              ]}
+            />
+
+            {/* Acciones admin agrupadas en dropdown */}
+            {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && (
+              <DropdownMenu
+                align="right"
+                buttonClassName="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg hover:bg-amber-100"
+                trigger={<><AlertTriangle className="h-3.5 w-3.5" /><span>Mora</span><svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg></>}
+                items={[
+                  ...(isAdmin ? [{ label: 'Agregar mora manual', icon: <AlertTriangle className="h-4 w-4" />, onClick: () => handleMora('add'), variant: 'danger' as const }] : []),
+                  { label: 'Ajustar tasa de mora', icon: <Percent className="h-4 w-4" />, onClick: () => handleMora('rate') },
+                  ...(loan.outstanding_late_fees > 0 ? [{ label: 'Condonar mora', icon: <ShieldOff className="h-4 w-4" />, onClick: () => handleMora('waive'), divider: true }] : []),
+                ]}
+              />
+            )}
+
+            {/* Firma + Renegociar + Castigar también compactos */}
             {!(loan as unknown as Record<string, unknown>).client_signature && (
-              <button onClick={() => setShowSignature(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-xs border border-pink-200 text-pink-700 bg-pink-50 rounded-lg hover:bg-pink-100">
-                ✍️ Firmar
-              </button>
-            )}
-            {/* WhatsApp */}
-            <button onClick={handleShareAmortization} disabled={sharing === 'amort'}
-              title="Compartir tabla de amortización por WhatsApp"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 disabled:opacity-60">
-              <MessageCircle className="h-4 w-4" />
-              {sharing === 'amort' ? 'Generando...' : 'Tabla WA'}
-            </button>
-            <button onClick={handleShareStatement} disabled={sharing === 'statement'}
-              title="Compartir estado de cuenta por WhatsApp"
-              className="flex items-center gap-1.5 px-3 py-2 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg hover:bg-green-100 disabled:opacity-60">
-              <MessageCircle className="h-4 w-4" />
-              {sharing === 'statement' ? 'Generando...' : 'Estado WA'}
-            </button>
-            {/* Botones de mora */}
-            {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && loan.outstanding_late_fees > 0 && (
-              <button onClick={() => handleMora('waive')}
-                title="Condonar mora"
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-amber-200 text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100">
-                <ShieldOff className="h-4 w-4" /> Condonar mora
+              <button onClick={() => setShowSignature(true)} title="Captura de firma del cliente"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-pink-200 text-pink-700 bg-pink-50 rounded-lg hover:bg-pink-100">
+                ✍️ <span className="hidden sm:inline">Firmar</span>
               </button>
             )}
             {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && isAdmin && (
-              <button onClick={() => handleMora('add')}
-                title="Agregar mora manualmente"
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-700 bg-red-50 rounded-lg hover:bg-red-100">
-                <AlertTriangle className="h-4 w-4" /> Agregar mora
-              </button>
-            )}
-            {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && (
-              <button onClick={() => handleMora('rate')}
-                title="Ajustar tasa de mora"
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-orange-200 text-orange-700 bg-orange-50 rounded-lg hover:bg-orange-100">
-                <Percent className="h-4 w-4" /> Tasa mora
-              </button>
-            )}
-            {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && isAdmin && (
-              <button onClick={() => {
-                setShowRenegotiate(true)
-                setRenegTerm(String(loan.term_months))
-                setRenegCuota(String(loan.monthly_payment))
-              }}
+              <button onClick={() => { setShowRenegotiate(true); setRenegTerm(String(loan.term_months)); setRenegCuota(String(loan.monthly_payment)) }}
                 title="Renegociar plazo y cuota"
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-purple-200 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">
-                <RefreshCw className="h-4 w-4" /> Renegociar
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-purple-200 text-purple-700 bg-purple-50 rounded-lg hover:bg-purple-100">
+                <RefreshCw className="h-3.5 w-3.5" /><span className="hidden sm:inline">Renegociar</span>
               </button>
             )}
             {(loan.status === 'ACTIVE' || loan.status === 'DEFAULTED') && (
-              <button onClick={() => setShowWriteOff(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
-                <XCircle className="h-4 w-4" /> Castigar
+              <button onClick={() => setShowWriteOff(v => !v)} title="Castigar préstamo (pérdida)"
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50">
+                <XCircle className="h-3.5 w-3.5" /><span className="hidden sm:inline">Castigar</span>
               </button>
             )}
-            <button onClick={load} className="p-2 border border-gray-200 rounded-lg hover:bg-gray-50">
-              <RefreshCw className="h-4 w-4 text-gray-400" />
+            <button onClick={load} title="Actualizar"
+              className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">
+              <RefreshCw className="h-3.5 w-3.5 text-gray-400" />
             </button>
           </div>
         </div>

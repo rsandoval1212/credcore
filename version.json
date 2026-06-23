@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
-  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.2.0-Setup.exe",
-  "notes": "Versión consolidada: mobile responsive + modelo LoanRenegotiation + importación masiva remota + endpoint audit log. Incluye todo lo de v1.1.0–1.1.9.",
+  "version": "1.2.1",
+  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.2.1-Setup.exe",
+  "notes": "Fix logo de empresa: ahora se guarda en %APPDATA% y aparece correctamente en TODOS los PDFs (recibos, contratos, tablas de amortización, estados de cuenta).",
   "mandatory": false
 }

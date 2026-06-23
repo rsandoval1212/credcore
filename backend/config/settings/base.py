@@ -142,7 +142,13 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+# Respeta MEDIA_ROOT env var (la setea credcore_app.py apuntando a %APPDATA%\CredCore\media,
+# escribible). Fallback a BASE_DIR/media para dev/server tradicional.
+MEDIA_ROOT = os.environ.get('MEDIA_ROOT') or str(BASE_DIR / 'media')
+try:
+    os.makedirs(MEDIA_ROOT, exist_ok=True)
+except Exception:
+    pass
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
