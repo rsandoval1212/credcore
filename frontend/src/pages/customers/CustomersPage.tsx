@@ -12,6 +12,7 @@ import api from '@/services/api'
 import type { Customer, CustomerStatus, RiskLevel } from '@/types'
 import toast from 'react-hot-toast'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
+import FilterChips from '@/components/ui/FilterChips'
 import CustomerFormModal from './CustomerFormModal'
 
 const STATUS_COLORS: Record<CustomerStatus, string> = {
@@ -186,6 +187,41 @@ export default function CustomersPage() {
           )}
         </div>
         <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} className="mt-3" />
+
+        <FilterChips
+          className="mt-3"
+          chips={[
+            { id: 'active', label: 'Activos', icon: '🟢', color: 'emerald' },
+            { id: 'inactive', label: 'Inactivos', icon: '⚪', color: 'gray' },
+            { id: 'blocked', label: 'Bloqueados', icon: '⛔', color: 'red' },
+            { id: 'high-risk', label: 'Alto riesgo', icon: '⚠️', color: 'amber' },
+            { id: 'this-month', label: 'Nuevos este mes', icon: '✨', color: 'blue' },
+          ]}
+          activeId={
+            statusFilter === 'ACTIVE' && !riskFilter && !dateRange ? 'active' :
+            statusFilter === 'INACTIVE' && !riskFilter && !dateRange ? 'inactive' :
+            statusFilter === 'BLOCKED' && !riskFilter && !dateRange ? 'blocked' :
+            riskFilter === 'HIGH' && !statusFilter && !dateRange ? 'high-risk' :
+            (() => {
+              if (!dateRange) return null
+              const monthStart = new Date(); monthStart.setDate(1)
+              const today = new Date()
+              return dateRange.from === monthStart.toISOString().slice(0, 10) &&
+                     dateRange.to === today.toISOString().slice(0, 10) ? 'this-month' : null
+            })()
+          }
+          onChange={(id) => {
+            setStatusFilter(''); setRiskFilter(''); setDateRange(null); setPage(1)
+            if (id === 'active') setStatusFilter('ACTIVE')
+            else if (id === 'inactive') setStatusFilter('INACTIVE')
+            else if (id === 'blocked') setStatusFilter('BLOCKED')
+            else if (id === 'high-risk') setRiskFilter('HIGH')
+            else if (id === 'this-month') {
+              const monthStart = new Date(); monthStart.setDate(1)
+              setDateRange({ from: monthStart.toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) })
+            }
+          }}
+        />
       </div>
 
       {/* Table */}

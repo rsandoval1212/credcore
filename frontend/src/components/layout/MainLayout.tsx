@@ -2,6 +2,8 @@ import TopNav from './TopNav'
 import ConnectionStatusBar from '@/components/offline/ConnectionStatusBar'
 import UpdateBanner from './UpdateBanner'
 import PWAInstallPrompt from '@/components/ui/PWAInstallPrompt'
+import ReportProblemButton from '@/components/ReportProblemButton'
+import OnboardingWizard from '@/components/OnboardingWizard'
 import { useGlobalShortcuts } from '@/hooks/useGlobalShortcuts'
 
 interface Props { children: React.ReactNode }
@@ -17,6 +19,8 @@ export default function MainLayout({ children }: Props) {
         {children}
       </main>
       <PWAInstallPrompt />
+      <ReportProblemButton variant="floating" />
+      <OnboardingWizard />
     </div>
   )
 }

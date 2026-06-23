@@ -8,6 +8,7 @@ import {
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
+import FilterChips from '@/components/ui/FilterChips'
 import PaymentFormModal from './PaymentFormModal'
 import PaymentEditModal from './PaymentEditModal'
 import ReceiptWhatsAppButton from '@/components/notifications/ReceiptWhatsAppButton'
@@ -131,6 +132,46 @@ export default function PaymentsPage() {
           </button>
         )}
         <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} className="mt-3 w-full" />
+
+        <FilterChips
+          className="mt-3"
+          chips={[
+            { id: 'today', label: 'Hoy', icon: '📅', color: 'emerald' },
+            { id: 'this-week', label: 'Esta semana', icon: '🗓️', color: 'blue' },
+            { id: 'this-month', label: 'Este mes', icon: '📊', color: 'purple' },
+            { id: 'cash', label: 'Efectivo', icon: '💵', color: 'amber' },
+            { id: 'transfer', label: 'Transferencia', icon: '🏦', color: 'blue' },
+          ]}
+          activeId={(() => {
+            if (methodFilter === 'CASH') return 'cash'
+            if (methodFilter === 'BANK_TRANSFER') return 'transfer'
+            if (!dateRange) return null
+            const today = new Date().toISOString().slice(0, 10)
+            if (dateRange.from === today && dateRange.to === today) return 'today'
+            const monday = new Date(); monday.setDate(monday.getDate() - monday.getDay() + 1)
+            const sunday = new Date(); sunday.setDate(sunday.getDate() + (7 - sunday.getDay()))
+            if (dateRange.from === monday.toISOString().slice(0, 10) && dateRange.to === sunday.toISOString().slice(0, 10)) return 'this-week'
+            const monthStart = new Date(); monthStart.setDate(1)
+            if (dateRange.from === monthStart.toISOString().slice(0, 10)) return 'this-month'
+            return null
+          })()}
+          onChange={(id) => {
+            setMethodFilter(''); setDateRange(null); setPage(1)
+            const today = new Date().toISOString().slice(0, 10)
+            if (id === 'today') setDateRange({ from: today, to: today })
+            else if (id === 'this-week') {
+              const monday = new Date(); monday.setDate(monday.getDate() - monday.getDay() + 1)
+              const sunday = new Date(); sunday.setDate(sunday.getDate() + (7 - sunday.getDay()))
+              setDateRange({ from: monday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) })
+            }
+            else if (id === 'this-month') {
+              const monthStart = new Date(); monthStart.setDate(1)
+              setDateRange({ from: monthStart.toISOString().slice(0, 10), to: today })
+            }
+            else if (id === 'cash') setMethodFilter('CASH')
+            else if (id === 'transfer') setMethodFilter('BANK_TRANSFER')
+          }}
+        />
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">

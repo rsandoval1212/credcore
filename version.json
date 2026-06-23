@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
-  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.4.0-Setup.exe",
-  "notes": "Endurecimiento operacional: CI/CD, tests unitarios, telemetría de errores, backup automático de licencia, soporte PostgreSQL preparado, código fuente del desktop ahora en git.",
+  "version": "1.4.1",
+  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.4.1-Setup.exe",
+  "notes": "Botón flotante de ayuda (WhatsApp directo al soporte) + wizard de configuración inicial al primer arranque + chips de filtros rápidos en Clientes, Préstamos y Cobros.",
   "mandatory": false
 }

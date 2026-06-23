@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { loansService } from '@/services/loans'
 import DateRangeFilter, { type DateRange } from '@/components/filters/DateRangeFilter'
+import FilterChips from '@/components/ui/FilterChips'
 import DirectLoanFormModal from './DirectLoanFormModal'
 import type { Loan, LoanStatus, LoanStats } from '@/types'
 import toast from 'react-hot-toast'
@@ -182,6 +183,30 @@ export default function LoansPage() {
           )}
         </div>
         <DateRangeFilter value={dateRange} onChange={r => { setDateRange(r); setPage(1) }} className="mt-3" />
+
+        <FilterChips
+          className="mt-3"
+          chips={[
+            { id: 'active', label: 'Activos', icon: '🟢', color: 'emerald' },
+            { id: 'defaulted', label: 'En mora', icon: '🔴', color: 'red' },
+            { id: 'completed', label: 'Completados', icon: '✓', color: 'blue' },
+            { id: 'written-off', label: 'Castigados', icon: '⚫', color: 'gray' },
+          ]}
+          activeId={
+            statusFilter === 'ACTIVE' ? 'active' :
+            statusFilter === 'DEFAULTED' ? 'defaulted' :
+            statusFilter === 'COMPLETED' ? 'completed' :
+            statusFilter === 'WRITTEN_OFF' ? 'written-off' : null
+          }
+          onChange={(id) => {
+            setPage(1)
+            if (id === 'active') setStatusFilter('ACTIVE')
+            else if (id === 'defaulted') setStatusFilter('DEFAULTED')
+            else if (id === 'completed') setStatusFilter('COMPLETED')
+            else if (id === 'written-off') setStatusFilter('WRITTEN_OFF')
+            else setStatusFilter('')
+          }}
+        />
       </div>
 
       {/* Table */}
