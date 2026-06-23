@@ -80,6 +80,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'apps.core.audit_middleware.AuditLogMiddleware',
+    'apps.core.error_telemetry.ErrorTelemetryMiddleware',
     'apps.core.totp_middleware.TwoFactorEnforcementMiddleware',
 ]
 

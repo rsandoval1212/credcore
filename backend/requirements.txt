@@ -50,6 +50,9 @@ django-auditlog==3.4.1
 # === Canales (WebSocket) ===
 channels==4.3.2
 
+# === Telemetria (opcional, requiere SENTRY_DSN env var) ===
+sentry-sdk==2.18.0
+
 # === Testing ===
 pytest==8.2.1
 pytest-django==4.8.0

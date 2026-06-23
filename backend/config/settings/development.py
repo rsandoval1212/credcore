@@ -4,8 +4,24 @@ from .base import *
 DEBUG = True
 ALLOWED_HOSTS = ['*']
 
-# SQLite para desarrollo local - cambia USE_SQLITE=False cuando tengas PostgreSQL
-if os.environ.get('USE_SQLITE', 'True') == 'True':
+# SQLite por defecto (desktop). PostgreSQL cuando cliente crezca a multi-usuario:
+#   DB_ENGINE=postgresql + DB_HOST + DB_NAME + DB_USER + DB_PASSWORD
+_db_engine = os.environ.get('DB_ENGINE', '').lower()
+
+if _db_engine == 'postgresql' or os.environ.get('USE_SQLITE', 'True') == 'False':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME':     os.environ.get('DB_NAME', 'credcore'),
+            'USER':     os.environ.get('DB_USER', 'credcore'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST':     os.environ.get('DB_HOST', 'localhost'),
+            'PORT':     os.environ.get('DB_PORT', '5432'),
+            'CONN_MAX_AGE': 60,
+            'OPTIONS': {'connect_timeout': 10},
+        }
+    }
+else:
     _db_path = os.environ.get('DB_PATH', str(BASE_DIR / 'db.sqlite3'))
     DATABASES = {
         'default': {

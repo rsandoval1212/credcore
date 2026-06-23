@@ -1,6 +1,6 @@
 {
-  "version": "1.3.1",
-  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.3.1-Setup.exe",
-  "notes": "Limpiar registro de actividad + reloj compacto desplegable + iconos del menú reorganizados (sin superposición) + botón editar préstamo (admin) + logo en PDFs garantizado.",
+  "version": "1.4.0",
+  "download_url": "https://github.com/rsandoval1212/credcore/releases/latest/download/CredCore-v1.4.0-Setup.exe",
+  "notes": "Endurecimiento operacional: CI/CD, tests unitarios, telemetría de errores, backup automático de licencia, soporte PostgreSQL preparado, código fuente del desktop ahora en git.",
   "mandatory": false
 }

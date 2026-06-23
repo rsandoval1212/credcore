@@ -16,6 +16,19 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary]', error, info.componentStack)
+    // Reportar a telemetría (no bloquear si falla)
+    try {
+      fetch('/api/v1/system/telemetry/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: error.message,
+          stack: (info.componentStack || '') + '\n' + (error.stack || ''),
+          url: window.location.href,
+        }),
+      }).catch(() => {})
+    } catch {}
   }
 
   render() {

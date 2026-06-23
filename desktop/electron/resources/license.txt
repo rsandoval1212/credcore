@@ -1,0 +1,38 @@
+CONTRATO DE LICENCIA DE SOFTWARE
+CredCore — Sistema de Gestión de Créditos
+=========================================
+
+Copyright (c) 2026 Ronny Sandoval. Todos los derechos reservados.
+
+Este software y su documentación asociada ("Software") son propiedad
+exclusiva de Ronny Sandoval ("Licenciante").
+
+TÉRMINOS Y CONDICIONES:
+
+1. LICENCIA: Se otorga al usuario final una licencia no exclusiva,
+   no transferible, para usar el Software en UN (1) equipo.
+
+2. RESTRICCIONES: El usuario NO puede:
+   - Copiar, modificar o distribuir el Software
+   - Realizar ingeniería inversa o descompilar el Software
+   - Sublicenciar, vender o transferir el Software a terceros
+   - Usar el Software para fines ilegales
+
+3. SOPORTE: El soporte técnico está disponible contactando a:
+   - WhatsApp: 849-442-2733
+   - Email: sandoval.pm12@gmail.com
+   - Instagram: @sandoval.pm
+
+4. GARANTÍA: El Software se proporciona "tal cual". El Licenciante
+   no garantiza que el Software esté libre de errores.
+
+5. LIMITACIÓN DE RESPONSABILIDAD: En ningún caso el Licenciante será
+   responsable por daños directos, indirectos o consecuentes derivados
+   del uso del Software.
+
+6. TERMINACIÓN: Esta licencia se termina automáticamente si el usuario
+   incumple cualquiera de los términos establecidos.
+
+Al instalar este Software, usted acepta los términos de esta licencia.
+
+Contacto: Ronny Sandoval — sandoval.pm12@gmail.com
